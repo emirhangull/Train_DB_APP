@@ -1,0 +1,79 @@
+Ara Rapor
+Tren Bileti Satış ve Rezervasyon Sistemi
+1) Proje Grup Üyeleri
+•	Emirhan Gül  221101073
+•	Onur Erçen 231101035
+• Nisa Eylül Çintiriz 221101063
+
+2) Proje Konusu ve Domain Tanımı
+Bu proje, demiryolu işletmesinde temel bir tren bileti satış ve rezervasyon akışını gerçekleyen, sade ve genişletilebilir bir veritabanı tasarımı ile bunun üzerine kurulacak basit bir arayüzü kapsamaktadır. Kullanıcılar kalkış/varış istasyonu ve tarihe göre sefer arar, koltuk seçer ve bilet oluşturur. Operasyon tarafı ise istasyon, tren ve sefer tanımlarını yönetir. Bilerek sadeleştirilen kısımlar: ara durak/aktarma, dinamik fiyatlama, kampanya vb.
+3) EER (Varlık-İlişki Modeli)
+Not: PK = primary key, FK = foreign key
+3.1. Varlıklar
+• İstasyon(istasyon_id PK, ad, sehir)
+• Tren(tren_id PK, kod, koltuk_sayisi)
+• Sefer(sefer_id PK, tren_id FK, kalkis_istasyon_id FK, varis_istasyon_id FK, kalkis_zamani, varis_zamani, durum{planli, satisa_acik, iptal, tamamlandi})
+• Yolcu(yolcu_id PK, ad_soyad, eposta UNIQUE, telefon)
+• Rezervasyon(rezervasyon_id PK, olusturulma_zamani, toplam_tutar, durum{olusturuldu, odendi, iptal}, pnr UNIQUE)
+• Bilet(bilet_id PK, rezervasyon_id FK, sefer_id FK, yolcu_id FK, koltuk_no, fiyat, durum{rezerve, kesildi, iade})
+• Ödeme(odeme_id PK, rezervasyon_id FK UNIQUE, yontem{kart, nakit}, tutar, durum{basarili, basarisiz, iade}, odeme_zamani)
+
+3.2. İlişkiler (Kardinalite)
+• Tren 1 — N Sefer
+• İstasyon 1 — N Sefer (kalkış)
+• İstasyon 1 — N Sefer (varış)
+• Rezervasyon 1 — N Bilet
+• Rezervasyon 0..1 — 1 Ödeme
+• Yolcu 1 — N Bilet
+• Sefer 1 — N Bilet
+4) Veritabanı Tasarım Detayları
+4.1. Anahtarlar ve Kısıtlar
+- Birincil Anahtarlar: tüm tablolarda *_id alanları.
+- Tekillikler (UNIQUE): Yolcu.eposta, Rezervasyon.pnr, Bilet(sefer_id, koltuk_no).
+- Yabancı Anahtarlar:
+  • Sefer.tren_id → Tren.tren_id
+  • Sefer.kalkis_istasyon_id → İstasyon.istasyon_id
+  • Sefer.varis_istasyon_id → İstasyon.istasyon_id
+  • Bilet.rezervasyon_id → Rezervasyon.rezervasyon_id
+  • Bilet.sefer_id → Sefer.sefer_id
+  • Bilet.yolcu_id → Yolcu.yolcu_id
+  • Ödeme.rezervasyon_id → Rezervasyon.rezervasyon_id (UNIQUE)
+- CHECK/Mantıksal Kurallar:
+  • kalkis_zamani < varis_zamani
+  • fiyat > 0, tutar > 0
+  • Rezervasyon.toplam_tutar = Σ(Bilet.fiyat)
+  • Ödeme.tutar = Rezervasyon.toplam_tutar
+  • Bilet.koltuk_no ∈ [1..Tren.koltuk_sayisi] (trigger/prosedür ile doğrulanır)
+5) Geliştirilecek Program: Menüler ve Fonksiyonlar
+5.1. Kullanıcı Arayüzü
+- Sefer Ara (kalkış, varış, tarih)
+- Koltuk Seç (uygun koltukların listelenmesi)
+- Yolcu Bilgisi (ad-soyad, e-posta, telefon)
+- Rezervasyon Oluştur
+- Ödeme (mock)
+- Bilet Görüntüle
+5.2. Operasyon/Yönetici
+- İstasyon Yönetimi (ekle/sil/gün)
+- Tren Yönetimi
+- Sefer Yönetimi (oluştur,sil)
+- Bilet/Rezervasyon İzleme (doluluk, iptal/iade)
+5.3. Basit Raporlar
+- Sefer Doluluk Oranı (satılan koltuk / toplam koltuk)
+- Gelir Özeti (tarih aralığına göre toplam tutar, en çok gelir getiren hat)
+
+6) Teknoloji ve Entegrasyon
+- VTYS: SQLite, NoSQL veya MySQL
+- Backend: Python
+- Ön yüz: React/Vue (REST API)
+- Erişim: İstemci → Web Server → Veritabanı; doğrudan istemci-DB bağlantısı yok
+
+7) Dummy Veri Planı
+- İstasyon: Ankara, İstanbul, Eskişehir, İzmir (4)
+- Tren: T01 (60 koltuk), T02 (80 koltuk) (2)
+- Sefer: Ankara→İstanbul (yarın 09:00–13:30, T01), İzmir→Ankara (yarın 08:00–15:00, T02) (2)
+- Yolcu: 3 kişi
+- Rezervasyon: 2 kayıt (1 odendi, 1 olusturuldu)
+- Bilet: 3–4 kayıt (aynı seferde farklı koltuklar; biri iade olabilir)
+- Ödeme: 1 kayıt (başarılı)
+
+Not: Bu doküman ara rapor kapsamında gereksinimleri, EER modelini ve temel arayüz planını sade ve uygulanabilir biçimde özetler. Gerekirse DDL (CREATE TABLE) taslağı ayrıca eklenebilir.
