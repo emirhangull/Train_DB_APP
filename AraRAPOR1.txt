@@ -67,7 +67,7 @@ Not: PK = primary key, FK = foreign key
 - Ön yüz: React/Vue (REST API)
 - Erişim: İstemci → Web Server → Veritabanı; doğrudan istemci-DB bağlantısı yok
 
-7) Dummy Veri Planı
+7) Dummy Veri Planı (güncellenebilir)
 - İstasyon: Ankara, İstanbul, Eskişehir, İzmir (4)
 - Tren: T01 (60 koltuk), T02 (80 koltuk) (2)
 - Sefer: Ankara→İstanbul (yarın 09:00–13:30, T01), İzmir→Ankara (yarın 08:00–15:00, T02) (2)
@@ -75,5 +75,3 @@ Not: PK = primary key, FK = foreign key
 - Rezervasyon: 2 kayıt (1 odendi, 1 olusturuldu)
 - Bilet: 3–4 kayıt (aynı seferde farklı koltuklar; biri iade olabilir)
 - Ödeme: 1 kayıt (başarılı)
-
-Not: Bu doküman ara rapor kapsamında gereksinimleri, EER modelini ve temel arayüz planını sade ve uygulanabilir biçimde özetler. Gerekirse DDL (CREATE TABLE) taslağı ayrıca eklenebilir.
