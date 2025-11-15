@@ -12,6 +12,24 @@ const api = axios.create({
   },
 });
 
+// Hata yönetimi için interceptor ekle
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      // Sunucu yanıt verdi ama hata durumu var
+      console.error('API Hatası:', error.response.data);
+    } else if (error.request) {
+      // İstek yapıldı ama yanıt alınamadı
+      console.error('Bağlantı Hatası: Backend\'e ulaşılamıyor. Backend çalışıyor mu?');
+    } else {
+      // İstek hazırlanırken bir hata oluştu
+      console.error('Hata:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // İstasyonlar
 export const getIstasyonlar = () => api.get('/api/istasyonlar');
 

@@ -15,7 +15,7 @@ class Database:
         self.user = os.getenv('DB_USER', 'root')
         self.password = os.getenv('DB_PASSWORD', '')
         self.database = os.getenv('DB_NAME', 'tren_rezervasyon_db')
-        self.port = os.getenv('DB_PORT', '3306')
+        self.port = int(os.getenv('DB_PORT', '3306'))
         self.connection = None
         
     def connect(self):
@@ -113,6 +113,8 @@ class Database:
     def get_last_insert_id(self):
         """Son eklenen kaydın ID'sini döndür"""
         try:
+            if not self.connection or not self.connection.is_connected():
+                self.connect()
             cursor = self.connection.cursor()
             cursor.execute("SELECT LAST_INSERT_ID()")
             result = cursor.fetchone()

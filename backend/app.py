@@ -39,6 +39,7 @@ logger.addHandler(file_handler)
 logger.info("Dosya loglama etkin: %s", file_handler.baseFilename)
 
 # Veritabanı bağlantısını başlat
+conn = None
 try:
     conn = db.connect()
     if conn:
@@ -47,6 +48,7 @@ try:
         logger.error("Veritabanı bağlantısı başarısız (None).")
 except Exception as ex:
     logger.exception(f"Veritabanı bağlantı hatası: {ex}")
+    conn = None
 
 # ============================================
 # YARDIMCI FONKSİYONLAR
@@ -54,7 +56,19 @@ except Exception as ex:
 
 def generate_pnr():
     """6 haneli benzersiz PNR kodu üret"""
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    max_attempts = 10
+    for _ in range(max_attempts):
+        pnr = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        # PNR'nin benzersiz olduğunu kontrol et
+        check = db.execute_query(
+            "SELECT 1 FROM Rezervasyon WHERE pnr = %s LIMIT 1",
+            (pnr,),
+            fetch=True
+        )
+        if not check:
+            return pnr
+    # Eğer 10 denemede benzersiz PNR bulunamazsa, daha uzun bir kod üret
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
 def format_datetime(dt):
     """Datetime objesini string'e çevir"""
@@ -550,11 +564,27 @@ def create_rezervasyon():
                 ))
                 yolcu_ids.append(db.get_last_insert_id())
 
-        # 2. Rezervasyon oluştur
-        pnr = generate_pnr()
-        query_rez = "INSERT INTO Rezervasyon (pnr, durum) VALUES (%s, 'olusturuldu')"
-        db.execute_query(query_rez, (pnr,))
-        rezervasyon_id = db.get_last_insert_id()
+        # 2. Rezervasyon oluştur (PNR benzersizlik kontrolü ile)
+        max_pnr_attempts = 10
+        rezervasyon_id = None
+        pnr = None
+        for attempt in range(max_pnr_attempts):
+            pnr = generate_pnr()
+            try:
+                query_rez = "INSERT INTO Rezervasyon (pnr, durum) VALUES (%s, 'olusturuldu')"
+                db.execute_query(query_rez, (pnr,))
+                rezervasyon_id = db.get_last_insert_id()
+                break  # Başarılı, döngüden çık
+            except Exception as pnr_error:
+                if 'Duplicate entry' in str(pnr_error) or 'UNIQUE' in str(pnr_error):
+                    if attempt == max_pnr_attempts - 1:
+                        raise Exception("PNR oluşturulamadı. Lütfen tekrar deneyin.")
+                    continue  # Tekrar dene
+                else:
+                    raise  # Başka bir hata, yukarı fırlat
+        
+        if not rezervasyon_id:
+            raise Exception("Rezervasyon oluşturulamadı.")
 
         # 3. Biletleri ekle
         for bilet_data in data['biletler']:

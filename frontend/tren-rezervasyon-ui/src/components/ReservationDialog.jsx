@@ -193,7 +193,7 @@ export default function ReservationDialog({ open, onClose, sefer }) {
               Rezervasyon ve ödeme başarılı.
             </Alert>
             <Typography variant="h6">PNR: <strong>{result.pnr}</strong></Typography>
-            <Typography>Toplam Tutar: <strong>{result.toplam_tutar} ₺</strong></Typography>
+            <Typography>Toplam Tutar: <strong>{Number(result.toplam_tutar).toFixed(2)} ₺</strong></Typography>
             <Typography>Ödeme Durumu: <strong>{result.odeme_durumu}</strong></Typography>
           </Box>
         ) : (
