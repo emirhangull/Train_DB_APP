@@ -43,17 +43,8 @@ file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(mes
 logger.addHandler(file_handler)
 logger.info("Dosya loglama etkin: %s", file_handler.baseFilename)
 
-# Veritabanı bağlantısını başlat
-conn = None
-try:
-    conn = db.connect()
-    if conn:
-        logger.info("Veritabanı bağlantısı kuruldu.")
-    else:
-        logger.error("Veritabanı bağlantısı başarısız (None).")
-except Exception as ex:
-    logger.exception(f"Veritabanı bağlantı hatası: {ex}")
-    conn = None
+# Veritabanı bağlantısı artık her endpoint içinde açılıp kapatılır
+logger.info("Veritabanı modulu yüklendi.")
 
 # ============================================
 # YARDIMCI FONKSİYONLAR
@@ -794,18 +785,34 @@ def rapor_sefer_doluluk():
             WHERE durum = 'satisa_acik'
             ORDER BY kalkis_zamani
         """
+        # execute_query içinde connection açılıp kapatılacak
         sonuclar = db.execute_query(query, fetch=True)
         
-        for s in sonuclar:
-            s['kalkis_zamani'] = format_datetime(s['kalkis_zamani'])
-            s['varis_zamani'] = format_datetime(s['varis_zamani'])
+        # Sonuçları JSON serializable formata çevir
+        # Cursor sonuçlarını hemen yeni dict'lere kopyala
+        data = []
+        for row in sonuclar:
+            item = {
+                'sefer_id': row.get('sefer_id'),
+                'kalkis_istasyon': row.get('kalkis_istasyon'),
+                'varis_istasyon': row.get('varis_istasyon'),
+                'kalkis_zamani': format_datetime(row.get('kalkis_zamani')),
+                'varis_zamani': format_datetime(row.get('varis_zamani')),
+                'tren_kodu': row.get('tren_kodu'),
+                'koltuk_sayisi': row.get('koltuk_sayisi'),
+                'dolu_koltuk_sayisi': row.get('dolu_koltuk_sayisi'),
+                'bos_koltuk_sayisi': row.get('bos_koltuk_sayisi'),
+                'doluluk_orani': float(row.get('doluluk_orani', 0))
+            }
+            data.append(item)
         
         return jsonify({
             'success': True,
-            'data': sonuclar,
-            'count': len(sonuclar)
+            'data': data,
+            'count': len(data)
         })
     except Exception as e:
+        logger.error(f"Sefer doluluk raporu hatası: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/raporlar/gelir-ozeti', methods=['GET'])
@@ -923,6 +930,15 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = False  # Stabil başlatma
 
+    # Test DB bağlantısını kontrol et
+    db_status = "OK"
+    try:
+        test_conn = db.get_connection()
+        if test_conn:
+            test_conn.close()
+    except Exception:
+        db_status = "ERROR"
+
     banner = (
         "\n" + "=" * 66 + "\n" +
         "TREN REZERVASYON SİSTEMİ API" + "\n" +
@@ -932,7 +948,7 @@ if __name__ == '__main__':
         f"HEALTH      : http://{host}:{port}/health" + "\n" +
         f"LOG LEVEL   : {LOG_LEVEL}" + "\n" +
         f"DEBUG MODE  : {debug}" + "\n" +
-        f"DB CONNECTED: {conn is not None}" + "\n" +
+        f"DB STATUS   : {db_status}" + "\n" +
         f"PYTHON PID  : {os.getpid()}" + "\n" +
         "=" * 66
     )

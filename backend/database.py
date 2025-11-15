@@ -1,9 +1,9 @@
 """
 Veritabanı Bağlantı Modülü
-MySQL bağlantısını yönetir
+MySQL bağlantısını yönetir - Connection Pooling ile
 """
 import mysql.connector
-from mysql.connector import Error
+from mysql.connector import Error, pooling
 import os
 from dotenv import load_dotenv
 
@@ -16,12 +16,16 @@ class Database:
         self.password = os.getenv('DB_PASSWORD', 'emre2004')
         self.database = os.getenv('DB_NAME', 'tren_rezervasyon_db')
         self.port = int(os.getenv('DB_PORT', '3306'))
-        self.connection = None
+        self.pool = None
+        self._initialize_pool()
         
-    def connect(self):
-        """Veritabanı bağlantısı oluştur"""
+    def _initialize_pool(self):
+        """Connection pool oluştur"""
         try:
-            self.connection = mysql.connector.connect(
+            self.pool = pooling.MySQLConnectionPool(
+                pool_name="tren_pool",
+                pool_size=10,
+                pool_reset_session=True,
                 host=self.host,
                 user=self.user,
                 password=self.password,
@@ -30,22 +34,45 @@ class Database:
                 charset='utf8mb4',
                 collation='utf8mb4_turkish_ci'
             )
-            if self.connection.is_connected():
-                print("MySQL veritabanına başarıyla bağlanıldı!")
-                return self.connection
+            print(f"MySQL Connection Pool oluşturuldu (pool_size=10)")
+        except Error as e:
+            print(f"Connection Pool hatası: {e}")
+            self.pool = None
+        
+    def get_connection(self):
+        """Pool'dan bir bağlantı al"""
+        try:
+            if self.pool:
+                return self.pool.get_connection()
+            else:
+                # Pool yoksa direkt bağlantı oluştur (fallback)
+                connection = mysql.connector.connect(
+                    host=self.host,
+                    user=self.user,
+                    password=self.password,
+                    database=self.database,
+                    port=self.port,
+                    charset='utf8mb4',
+                    collation='utf8mb4_turkish_ci'
+                )
+                if connection.is_connected():
+                    return connection
         except Error as e:
             print(f"Veritabanı bağlantı hatası: {e}")
-            return None
+            raise e
     
-    def disconnect(self):
+    def connect(self):
+        """Geriye uyumluluk için - get_connection'ı çağırır"""
+        return self.get_connection()
+    
+    def disconnect(self, connection=None):
         """Veritabanı bağlantısını kapat"""
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-            print("MySQL bağlantısı kapatıldı.")
+        if connection and connection.is_connected():
+            connection.close()
     
     def execute_query(self, query, params=None, fetch=False):
         """
-        SQL sorgusu çalıştır
+        SQL sorgusu çalıştır - Her çağrıda yeni connection açar ve kapatır
         
         Args:
             query: SQL sorgusu
@@ -56,33 +83,34 @@ class Database:
             fetch=True: Sorgu sonuçları (list of dict)
             fetch=False: Etkilenen satır sayısı
         """
+        connection = None
         cursor = None
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-            
-            cursor = self.connection.cursor(dictionary=True)
+            connection = self.get_connection()
+            cursor = connection.cursor(dictionary=True)
             cursor.execute(query, params or ())
             
             if fetch:
                 result = cursor.fetchall()
                 return result
             else:
-                self.connection.commit()
+                connection.commit()
                 return cursor.rowcount
                 
         except Error as e:
             print(f"Sorgu hatası: {e}")
-            if self.connection:
-                self.connection.rollback()
+            if connection:
+                connection.rollback()
             raise e
         finally:
             if cursor:
                 cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
     
     def execute_many(self, query, params_list):
         """
-        Çoklu insert/update için
+        Çoklu insert/update için - Her çağrıda yeni connection açar ve kapatır
         
         Args:
             query: SQL sorgusu
@@ -91,38 +119,44 @@ class Database:
         Returns:
             Etkilenen satır sayısı
         """
+        connection = None
         cursor = None
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-            
-            cursor = self.connection.cursor()
+            connection = self.get_connection()
+            cursor = connection.cursor()
             cursor.executemany(query, params_list)
-            self.connection.commit()
+            connection.commit()
             return cursor.rowcount
             
         except Error as e:
             print(f"Çoklu sorgu hatası: {e}")
-            if self.connection:
-                self.connection.rollback()
+            if connection:
+                connection.rollback()
             raise e
         finally:
             if cursor:
                 cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
     
     def get_last_insert_id(self):
-        """Son eklenen kaydın ID'sini döndür"""
+        """Son eklenen kaydın ID'sini döndür - Her çağrıda yeni connection açar ve kapatır"""
+        connection = None
+        cursor = None
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-            cursor = self.connection.cursor()
+            connection = self.get_connection()
+            cursor = connection.cursor()
             cursor.execute("SELECT LAST_INSERT_ID()")
             result = cursor.fetchone()
-            cursor.close()
             return result[0] if result else None
         except Error as e:
             print(f"Last insert ID hatası: {e}")
             return None
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
 
 # Global database instance
 db = Database()
