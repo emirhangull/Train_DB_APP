@@ -93,7 +93,7 @@ function App() {
       const list = response.data.data || [];
       setSeferler(list);
 
-      if (!response.data.count) {
+      if (list.length === 0) {
         setError('Seçilen kriterlere uygun sefer bulunamadı.');
       }
     } catch (err) {

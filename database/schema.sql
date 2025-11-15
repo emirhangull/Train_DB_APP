@@ -78,7 +78,8 @@ CREATE TABLE Bilet (
     FOREIGN KEY (rezervasyon_id) REFERENCES Rezervasyon(rezervasyon_id) ON DELETE CASCADE,
     FOREIGN KEY (sefer_id) REFERENCES Sefer(sefer_id) ON DELETE RESTRICT,
     FOREIGN KEY (yolcu_id) REFERENCES Yolcu(yolcu_id) ON DELETE RESTRICT,
-    UNIQUE KEY unique_sefer_koltuk (sefer_id, koltuk_no),
+    -- UNIQUE KEY kaldırıldı: İade edilen koltuklar tekrar rezerve edilebilmeli
+    -- Uygulama katmanında durum != 'iade' kontrolü yapılıyor
     CHECK (fiyat > 0),
     CHECK (koltuk_no > 0),
     INDEX idx_rezervasyon (rezervasyon_id),
@@ -194,7 +195,8 @@ JOIN Istasyon ik ON s.kalkis_istasyon_id = ik.istasyon_id
 JOIN Istasyon iv ON s.varis_istasyon_id = iv.istasyon_id
 JOIN Tren t ON s.tren_id = t.tren_id
 LEFT JOIN Bilet b ON s.sefer_id = b.sefer_id AND b.durum != 'iade'
-GROUP BY s.sefer_id;
+GROUP BY s.sefer_id, s.kalkis_zamani, s.varis_zamani, s.durum,
+         ik.ad, ik.sehir, iv.ad, iv.sehir, t.kod, t.koltuk_sayisi;
 
 -- View: Rezervasyon Özeti
 CREATE VIEW vw_rezervasyon_ozet AS

@@ -13,7 +13,7 @@ class Database:
     def __init__(self):
         self.host = os.getenv('DB_HOST', 'localhost')
         self.user = os.getenv('DB_USER', 'root')
-        self.password = os.getenv('DB_PASSWORD', '')
+        self.password = os.getenv('DB_PASSWORD', 'emre2004')
         self.database = os.getenv('DB_NAME', 'tren_rezervasyon_db')
         self.port = int(os.getenv('DB_PORT', '3306'))
         self.connection = None

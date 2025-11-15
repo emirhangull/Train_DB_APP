@@ -33,6 +33,9 @@ DB_USER=root
 DB_PASSWORD=sizin_mysql_sifreniz
 DB_NAME=tren_rezervasyon_db
 DB_PORT=3306
+
+# Güvenlik: Üretim ortamında mutlaka değiştirin!
+SECRET_KEY=your-secret-key-here-change-in-production
 ```
 
 ### 4. MySQL Veritabanını Oluştur

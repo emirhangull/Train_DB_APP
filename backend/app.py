@@ -12,6 +12,11 @@ from logging.handlers import RotatingFileHandler
 from database import db
 
 app = Flask(__name__)
+
+# Güvenlik: SECRET_KEY (session, cookie imzalama vb. için)
+# Üretim ortamında mutlaka değiştirin!
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
 CORS(app)  # React frontend'den gelen isteklere izin ver
 
 # ------------------------------------------------------------
@@ -587,20 +592,66 @@ def create_rezervasyon():
             raise Exception("Rezervasyon oluşturulamadı.")
 
         # 3. Biletleri ekle
-        for bilet_data in data['biletler']:
-            yolcu_id = yolcu_ids[bilet_data['yolcu_index']]
-            query_bilet = """
-                INSERT INTO Bilet 
-                (rezervasyon_id, sefer_id, yolcu_id, koltuk_no, fiyat, durum) 
-                VALUES (%s, %s, %s, %s, %s, 'rezerve')
-            """
-            db.execute_query(query_bilet, (
-                rezervasyon_id,
-                bilet_data['sefer_id'],
-                yolcu_id,
-                bilet_data['koltuk_no'],
-                bilet_data['fiyat']
-            ))
+        eklenen_biletler = []  # Hata durumunda temizlik için
+        try:
+            for bilet_data in data['biletler']:
+                yolcu_id = yolcu_ids[bilet_data['yolcu_index']]
+                
+                # Son kontrol: Koltuk hala boş mu? (race condition için)
+                final_check = db.execute_query(
+                    "SELECT 1 FROM Bilet WHERE sefer_id = %s AND koltuk_no = %s AND durum != 'iade' LIMIT 1",
+                    (bilet_data['sefer_id'], bilet_data['koltuk_no']),
+                    fetch=True
+                )
+                if final_check:
+                    # Eğer koltuk doluysa, rezervasyonu iptal et ve eklenen biletleri temizle
+                    if eklenen_biletler:
+                        db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
+                                        ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
+                    db.execute_query("UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s", (rezervasyon_id,))
+                    return jsonify({
+                        'success': False,
+                        'error': f'Koltuk {bilet_data["koltuk_no"]} artık dolu. Lütfen başka bir koltuk seçin.'
+                    }), 409
+                
+                query_bilet = """
+                    INSERT INTO Bilet 
+                    (rezervasyon_id, sefer_id, yolcu_id, koltuk_no, fiyat, durum) 
+                    VALUES (%s, %s, %s, %s, %s, 'rezerve')
+                """
+                try:
+                    db.execute_query(query_bilet, (
+                        rezervasyon_id,
+                        bilet_data['sefer_id'],
+                        yolcu_id,
+                        bilet_data['koltuk_no'],
+                        bilet_data['fiyat']
+                    ))
+                    bilet_id = db.get_last_insert_id()
+                    eklenen_biletler.append(bilet_id)
+                except Exception as insert_error:
+                    # UNIQUE KEY hatası yakalanırsa (eğer hala varsa)
+                    if 'Duplicate entry' in str(insert_error) or 'UNIQUE' in str(insert_error):
+                        # Eklenen biletleri temizle
+                        if eklenen_biletler:
+                            db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
+                                            ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
+                        db.execute_query("UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s", (rezervasyon_id,))
+                        return jsonify({
+                            'success': False,
+                            'error': f'Koltuk {bilet_data["koltuk_no"]} zaten rezerve edilmiş.'
+                        }), 409
+                    raise  # Diğer hatalar için yukarı fırlat
+        except Exception as bilet_error:
+            # Beklenmeyen hata durumunda eklenen biletleri temizle
+            if eklenen_biletler:
+                try:
+                    db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
+                                    ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
+                    db.execute_query("UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s", (rezervasyon_id,))
+                except:
+                    pass  # Temizlik hatası görmezden gel
+            raise  # Orijinal hatayı yukarı fırlat
 
         # 4. Toplam tutarı güncelle (trigger otomatik yapıyor ama yine de kontrol edelim)
         query_tutar = """
