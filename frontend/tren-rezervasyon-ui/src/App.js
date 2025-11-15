@@ -22,6 +22,8 @@ import {
 import TrainIcon from '@mui/icons-material/Train';
 import SearchIcon from '@mui/icons-material/Search';
 import { getIstasyonlar, araSefer, getSeferDoluluk } from './services/api';
+import ReservationDialog from './components/ReservationDialog';
+import PNRLookup from './components/PNRLookup';
 
 const formatDateTime = (value) => {
   try {
@@ -40,6 +42,8 @@ function App() {
   const [tarih, setTarih] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSefer, setSelectedSefer] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -98,6 +102,16 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openReservation = (sefer) => {
+    setSelectedSefer(sefer);
+    setDialogOpen(true);
+  };
+
+  const closeReservation = () => {
+    setDialogOpen(false);
+    setSelectedSefer(null);
   };
 
   return (
@@ -193,6 +207,9 @@ function App() {
           </CardContent>
         </Card>
 
+  {/* PNR ile bilet sorgulama */}
+  <PNRLookup />
+
         {seferler.length > 0 && (
           <Card sx={{ mb: 4 }}>
             <CardContent>
@@ -230,6 +247,7 @@ function App() {
                             variant="contained"
                             size="small"
                             disabled={sefer.bos_koltuk_sayisi === 0}
+                            onClick={() => openReservation(sefer)}
                           >
                             {sefer.bos_koltuk_sayisi > 0 ? 'Rezerve Et' : 'Dolu'}
                           </Button>
@@ -291,6 +309,9 @@ function App() {
           </Typography>
         </Box>
       </Container>
+
+      {/* Rezervasyon Dialog */}
+      <ReservationDialog open={dialogOpen} onClose={closeReservation} sefer={selectedSefer} />
     </Box>
   );
 }

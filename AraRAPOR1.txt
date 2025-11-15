@@ -46,6 +46,7 @@ Not: PK = primary key, FK = foreign key
   • Bilet.koltuk_no ∈ [1..Tren.koltuk_sayisi] (trigger/prosedür ile doğrulanır)
 5) Geliştirilecek Program: Menüler ve Fonksiyonlar
 5.1. Kullanıcı Arayüzü
+- Kayıt ol / giriş yap
 - Sefer Ara (kalkış, varış, tarih)
 - Koltuk Seç (uygun koltukların listelenmesi)
 - Yolcu Bilgisi (ad-soyad, e-posta, telefon)

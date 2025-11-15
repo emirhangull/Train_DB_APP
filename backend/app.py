@@ -7,13 +7,46 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
 import string
+import logging, os
+from logging.handlers import RotatingFileHandler
 from database import db
 
 app = Flask(__name__)
 CORS(app)  # React frontend'den gelen isteklere izin ver
 
+# ------------------------------------------------------------
+# LOGGING AYARI
+# ------------------------------------------------------------
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("tren-rezervasyon")
+
+# File logging (rotating)
+LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+file_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, 'backend.log'),
+    maxBytes=512000,  # 500 KB
+    backupCount=3,
+    encoding='utf-8'
+)
+file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s"))
+logger.addHandler(file_handler)
+logger.info("Dosya loglama etkin: %s", file_handler.baseFilename)
+
 # Veritabanı bağlantısını başlat
-db.connect()
+try:
+    conn = db.connect()
+    if conn:
+        logger.info("Veritabanı bağlantısı kuruldu.")
+    else:
+        logger.error("Veritabanı bağlantısı başarısız (None).")
+except Exception as ex:
+    logger.exception(f"Veritabanı bağlantı hatası: {ex}")
 
 # ============================================
 # YARDIMCI FONKSİYONLAR
@@ -44,7 +77,7 @@ def index():
             'trenler': '/api/trenler',
             'seferler': '/api/seferler',
             'sefer_ara': '/api/seferler/ara',
-            'rezervasyon': '/api/rezervasyon',
+            'rezervasyonlar': '/api/rezervasyonlar',
             'raporlar': '/api/raporlar'
         }
     })
@@ -52,7 +85,19 @@ def index():
 @app.route('/health')
 def health():
     """API sağlık kontrolü"""
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+    db_ok = True
+    db_error = None
+    try:
+        db.execute_query("SELECT 1", fetch=True)
+    except Exception as e:
+        db_ok = False
+        db_error = str(e)
+    return jsonify({
+        'status': 'healthy' if db_ok else 'degraded',
+        'db': 'ok' if db_ok else 'error',
+        'error': db_error,
+        'timestamp': datetime.now().isoformat()
+    })
 
 # ============================================
 # İSTASYON API
@@ -466,31 +511,51 @@ def create_rezervasyon():
     """
     try:
         data = request.get_json()
-        
+
+        # 0. Koltuk uygunluk kontrolü (ön kontrol)
+        conflicts = []
+        for bilet in data.get('biletler', []):
+            check = db.execute_query(
+                "SELECT 1 FROM Bilet WHERE sefer_id = %s AND koltuk_no = %s AND durum != 'iade' LIMIT 1",
+                (bilet['sefer_id'], bilet['koltuk_no']),
+                fetch=True
+            )
+            if check:
+                conflicts.append({
+                    'sefer_id': bilet['sefer_id'],
+                    'koltuk_no': bilet['koltuk_no']
+                })
+        if conflicts:
+            return jsonify({
+                'success': False,
+                'error': 'Seçilen koltuklardan bazıları dolu.',
+                'conflicts': conflicts
+            }), 409
+
         # 1. Yolcuları ekle/getir
         yolcu_ids = []
         for yolcu_data in data['yolcular']:
             # E-posta ile kontrol
             query_check = "SELECT yolcu_id FROM Yolcu WHERE eposta = %s"
             existing = db.execute_query(query_check, (yolcu_data['eposta'],), fetch=True)
-            
+
             if existing:
                 yolcu_ids.append(existing[0]['yolcu_id'])
             else:
                 query_yolcu = "INSERT INTO Yolcu (ad_soyad, eposta, telefon) VALUES (%s, %s, %s)"
                 db.execute_query(query_yolcu, (
-                    yolcu_data['ad_soyad'], 
-                    yolcu_data['eposta'], 
+                    yolcu_data['ad_soyad'],
+                    yolcu_data['eposta'],
                     yolcu_data.get('telefon', '')
                 ))
                 yolcu_ids.append(db.get_last_insert_id())
-        
+
         # 2. Rezervasyon oluştur
         pnr = generate_pnr()
         query_rez = "INSERT INTO Rezervasyon (pnr, durum) VALUES (%s, 'olusturuldu')"
         db.execute_query(query_rez, (pnr,))
         rezervasyon_id = db.get_last_insert_id()
-        
+
         # 3. Biletleri ekle
         for bilet_data in data['biletler']:
             yolcu_id = yolcu_ids[bilet_data['yolcu_index']]
@@ -506,7 +571,7 @@ def create_rezervasyon():
                 bilet_data['koltuk_no'],
                 bilet_data['fiyat']
             ))
-        
+
         # 4. Toplam tutarı güncelle (trigger otomatik yapıyor ama yine de kontrol edelim)
         query_tutar = """
             SELECT SUM(fiyat) as toplam 
@@ -515,7 +580,7 @@ def create_rezervasyon():
         """
         tutar_result = db.execute_query(query_tutar, (rezervasyon_id,), fetch=True)
         toplam_tutar = tutar_result[0]['toplam']
-        
+
         return jsonify({
             'success': True,
             'message': 'Rezervasyon başarıyla oluşturuldu',
@@ -564,23 +629,34 @@ def create_odeme():
     """
     try:
         data = request.get_json()
-        
-        # Rezervasyon bilgisini kontrol et
-        query_rez = "SELECT toplam_tutar FROM Rezervasyon WHERE rezervasyon_id = %s"
+
+        # Rezervasyon bilgisini ve mevcut ödeme durumunu kontrol et
+        query_rez = "SELECT toplam_tutar, durum FROM Rezervasyon WHERE rezervasyon_id = %s"
         rez_result = db.execute_query(query_rez, (data['rezervasyon_id'],), fetch=True)
-        
+
         if not rez_result:
             return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'}), 404
-        
+
+        if rez_result[0]['durum'] == 'odendi':
+            return jsonify({'success': False, 'error': 'Rezervasyon zaten ödenmiş'}), 400
+
+        odeme_var_mi = db.execute_query(
+            "SELECT odeme_id FROM Odeme WHERE rezervasyon_id = %s",
+            (data['rezervasyon_id'],),
+            fetch=True
+        )
+        if odeme_var_mi:
+            return jsonify({'success': False, 'error': 'Bu rezervasyon için ödeme zaten mevcut'}), 400
+
         toplam_tutar = float(rez_result[0]['toplam_tutar'])
-        
+
         # Tutar kontrolü
         if abs(float(data['tutar']) - toplam_tutar) > 0.01:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': f'Ödeme tutarı rezervasyon tutarı ile eşleşmiyor. Beklenen: {toplam_tutar}'
             }), 400
-        
+
         # Mock ödeme (her zaman başarılı)
         query_odeme = """
             INSERT INTO Odeme 
@@ -593,15 +669,15 @@ def create_odeme():
             data['tutar']
         ))
         odeme_id = db.get_last_insert_id()
-        
+
         # Rezervasyon durumunu güncelle
         query_update_rez = "UPDATE Rezervasyon SET durum = 'odendi' WHERE rezervasyon_id = %s"
         db.execute_query(query_update_rez, (data['rezervasyon_id'],))
-        
+
         # Biletleri kesildi yap
         query_update_bilet = "UPDATE Bilet SET durum = 'kesildi' WHERE rezervasyon_id = %s"
         db.execute_query(query_update_bilet, (data['rezervasyon_id'],))
-        
+
         return jsonify({
             'success': True,
             'message': 'Ödeme başarıyla tamamlandı',
@@ -762,17 +838,27 @@ def internal_error(error):
 # ============================================
 
 if __name__ == '__main__':
-    import os
     host = os.getenv('HOST', '127.0.0.1')
     port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'True') == 'True'
-    
-    print("=" * 60)
-    print("TREN REZERVASYON SİSTEMİ API")
-    print("=" * 60)
-    print(f"Server: http://{host}:{port}")
-    print(f"Health Check: http://{host}:{port}/health")
-    print(f"Debug Mode: {debug}")
-    print("=" * 60)
-    
-    app.run(host=host, port=port, debug=debug)
+    debug = False  # Stabil başlatma
+
+    banner = (
+        "\n" + "=" * 66 + "\n" +
+        "TREN REZERVASYON SİSTEMİ API" + "\n" +
+        "=" * 66 + "\n" +
+        f"HOST        : {host}" + "\n" +
+        f"PORT        : {port}" + "\n" +
+        f"HEALTH      : http://{host}:{port}/health" + "\n" +
+        f"LOG LEVEL   : {LOG_LEVEL}" + "\n" +
+        f"DEBUG MODE  : {debug}" + "\n" +
+        f"DB CONNECTED: {conn is not None}" + "\n" +
+        f"PYTHON PID  : {os.getpid()}" + "\n" +
+        "=" * 66
+    )
+    print(banner, flush=True)
+    logger.info("Flask sunucusu başlatılıyor (app.run)...")
+    try:
+        app.run(host=host, port=port, debug=debug, use_reloader=False)
+    except Exception:
+        logger.exception("Sunucu başlatma hatası")
+        raise
