@@ -17,6 +17,7 @@ class Database:
         self.database = os.getenv('DB_NAME', 'tren_rezervasyon_db')
         self.port = int(os.getenv('DB_PORT', '3306'))
         self.pool = None
+        self._last_insert_id = None
         self._initialize_pool()
         
     def _initialize_pool(self):
@@ -71,32 +72,22 @@ class Database:
             connection.close()
     
     def execute_query(self, query, params=None, fetch=False):
-        """
-        SQL sorgusu çalıştır - Her çağrıda yeni connection açar ve kapatır
-        
-        Args:
-            query: SQL sorgusu
-            params: Sorgu parametreleri (tuple)
-            fetch: True ise sonuçları döndür
-            
-        Returns:
-            fetch=True: Sorgu sonuçları (list of dict)
-            fetch=False: Etkilenen satır sayısı
-        """
         connection = None
         cursor = None
         try:
             connection = self.get_connection()
             cursor = connection.cursor(dictionary=True)
             cursor.execute(query, params or ())
-            
+
             if fetch:
                 result = cursor.fetchall()
                 return result
             else:
                 connection.commit()
+                # INSERT ise lastrowid anlamlıdır
+                self._last_insert_id = cursor.lastrowid
                 return cursor.rowcount
-                
+
         except Error as e:
             print(f"Sorgu hatası: {e}")
             if connection:
@@ -140,23 +131,8 @@ class Database:
                 connection.close()
     
     def get_last_insert_id(self):
-        """Son eklenen kaydın ID'sini döndür - Her çağrıda yeni connection açar ve kapatır"""
-        connection = None
-        cursor = None
-        try:
-            connection = self.get_connection()
-            cursor = connection.cursor()
-            cursor.execute("SELECT LAST_INSERT_ID()")
-            result = cursor.fetchone()
-            return result[0] if result else None
-        except Error as e:
-            print(f"Last insert ID hatası: {e}")
-            return None
-        finally:
-            if cursor:
-                cursor.close()
-            if connection and connection.is_connected():
-                connection.close()
+        """Son execute_query çağrısında oluşan AUTO_INCREMENT ID'yi döndür."""
+        return self._last_insert_id
 
 # Global database instance
 db = Database()
