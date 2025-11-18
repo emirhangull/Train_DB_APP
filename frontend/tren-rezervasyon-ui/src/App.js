@@ -5,6 +5,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
@@ -13,6 +14,7 @@ import Seferler from './pages/Seferler';
 import Rezervasyonlar from './pages/Rezervasyonlar';
 import Raporlar from './pages/Raporlar';
 import Profil from './pages/Profil';
+import './App.css';
 
 function App() {
   return (
@@ -35,7 +37,14 @@ function App() {
             <Route index element={<Home />} />
             <Route path="seferler" element={<Seferler />} />
             <Route path="rezervasyonlar" element={<Rezervasyonlar />} />
-            <Route path="raporlar" element={<Raporlar />} />
+            <Route
+              path="raporlar"
+              element={
+                <AdminRoute>
+                  <Raporlar />
+                </AdminRoute>
+              }
+            />
             <Route path="profil" element={<Profil />} />
           </Route>
 

@@ -42,6 +42,7 @@ const formatDateTime = (value) => {
 
 function Home() {
   const { user, logout } = useAuth();
+  const isAdmin = user?.rol === 'admin';
   const [istasyonlar, setIstasyonlar] = useState([]);
   const [seferler, setSeferler] = useState([]);
   const [dolulukRaporu, setDolulukRaporu] = useState([]);
@@ -117,6 +118,7 @@ function Home() {
   };
 
   const openReservation = (sefer) => {
+    if (isAdmin) return;
     setSelectedSefer(sefer);
     setDialogOpen(true);
   };
@@ -181,14 +183,17 @@ function Home() {
             </Typography>
             <Box component="form" onSubmit={handleSearch} sx={{ mt: 2 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     select
                     fullWidth
                     label="Kalkış Şehri"
+                    margin="normal"
                     value={kalkisSehir}
                     onChange={(event) => setKalkisSehir(event.target.value)}
                     required
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ minWidth: 260 }}
                   >
                     {sehirler.map((sehir) => (
                       <MenuItem key={sehir} value={sehir}>
@@ -198,14 +203,17 @@ function Home() {
                   </TextField>
                 </Grid>
 
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     select
                     fullWidth
                     label="Varış Şehri"
+                    margin="normal"
                     value={varisSehir}
                     onChange={(event) => setVarisSehir(event.target.value)}
                     required
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ minWidth: 260 }}
                   >
                     {sehirler.map((sehir) => (
                       <MenuItem key={sehir} value={sehir}>
@@ -215,7 +223,7 @@ function Home() {
                   </TextField>
                 </Grid>
 
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={4}>
                   <TextField
                     type="date"
                     fullWidth
@@ -227,7 +235,7 @@ function Home() {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'stretch' }}>
                   <Button
                     type="submit"
                     variant="contained"
@@ -253,6 +261,11 @@ function Home() {
               <Typography variant="h5" gutterBottom>
                 Bulunan Seferler ({seferler.length})
               </Typography>
+              {isAdmin && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Yönetici kullanıcıları yalnızca sefer sonuçlarını görüntüleyebilir, rezervasyon yapamaz.
+                </Alert>
+              )}
               <TableContainer>
                 <Table>
                   <TableHead>
@@ -283,10 +296,14 @@ function Home() {
                           <Button
                             variant="contained"
                             size="small"
-                            disabled={sefer.bos_koltuk_sayisi === 0}
+                            disabled={sefer.bos_koltuk_sayisi === 0 || isAdmin}
                             onClick={() => openReservation(sefer)}
                           >
-                            {sefer.bos_koltuk_sayisi > 0 ? 'Rezerve Et' : 'Dolu'}
+                            {isAdmin
+                              ? 'Yalnızca Görüntüleme'
+                              : sefer.bos_koltuk_sayisi > 0
+                              ? 'Rezerve Et'
+                              : 'Dolu'}
                           </Button>
                         </TableCell>
                       </TableRow>
