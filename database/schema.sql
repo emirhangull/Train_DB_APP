@@ -43,7 +43,24 @@ CREATE TABLE Sefer (
     INDEX idx_durum (durum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 4. Yolcu Tablosu
+-- 4. Kullanıcı Tablosu (Authentication)
+CREATE TABLE Kullanici (
+    kullanici_id INT AUTO_INCREMENT PRIMARY KEY,
+    kullanici_adi VARCHAR(50) NOT NULL UNIQUE,
+    eposta VARCHAR(150) NOT NULL UNIQUE,
+    sifre_hash VARCHAR(255) NOT NULL,
+    ad_soyad VARCHAR(150) NOT NULL,
+    telefon VARCHAR(20),
+    rol ENUM('admin', 'kullanici') DEFAULT 'kullanici',
+    aktif BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL,
+    INDEX idx_kullanici_adi (kullanici_adi),
+    INDEX idx_eposta (eposta),
+    INDEX idx_rol (rol)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+-- 5. Yolcu Tablosu
 CREATE TABLE Yolcu (
     yolcu_id INT AUTO_INCREMENT PRIMARY KEY,
     ad_soyad VARCHAR(150) NOT NULL,
@@ -53,7 +70,7 @@ CREATE TABLE Yolcu (
     INDEX idx_eposta (eposta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 5. Rezervasyon Tablosu
+-- 6. Rezervasyon Tablosu
 CREATE TABLE Rezervasyon (
     rezervasyon_id INT AUTO_INCREMENT PRIMARY KEY,
     pnr VARCHAR(10) NOT NULL UNIQUE,
@@ -65,7 +82,7 @@ CREATE TABLE Rezervasyon (
     INDEX idx_durum (durum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 6. Bilet Tablosu
+-- 7. Bilet Tablosu
 CREATE TABLE Bilet (
     bilet_id INT AUTO_INCREMENT PRIMARY KEY,
     rezervasyon_id INT NOT NULL,
@@ -86,7 +103,7 @@ CREATE TABLE Bilet (
     INDEX idx_sefer (sefer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 7. Ödeme Tablosu
+-- 8. Ödeme Tablosu
 CREATE TABLE Odeme (
     odeme_id INT AUTO_INCREMENT PRIMARY KEY,
     rezervasyon_id INT NOT NULL UNIQUE,

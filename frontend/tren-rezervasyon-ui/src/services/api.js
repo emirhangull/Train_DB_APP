@@ -3,13 +3,14 @@
  */
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://localhost:5002';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Session için cookie gönderilmesi gerekiyor
 });
 
 // Hata yönetimi için interceptor ekle
@@ -73,5 +74,11 @@ export const deleteTren = (id) => api.delete(`/api/trenler/${id}`);
 // Yönetici - Sefer
 export const createSefer = (data) => api.post('/api/seferler', data);
 export const deleteSefer = (id) => api.delete(`/api/seferler/${id}`);
+
+// Authentication
+export const register = (data) => api.post('/api/auth/register', data);
+export const login = (data) => api.post('/api/auth/login', data);
+export const logout = () => api.post('/api/auth/logout');
+export const getCurrentUser = () => api.get('/api/auth/me');
 
 export default api;

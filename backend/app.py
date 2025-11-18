@@ -2,12 +2,13 @@
 Flask REST API Ana Dosyası
 Tren Rezervasyon Sistemi
 """
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
 import string
 import logging, os
+import bcrypt
 from logging.handlers import RotatingFileHandler
 from database import db
 
@@ -17,7 +18,13 @@ app = Flask(__name__)
 # Üretim ortamında mutlaka değiştirin!
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-CORS(app)  # React frontend'den gelen isteklere izin ver
+# Session ayarları
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Development için False, production'da True olmalı
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
+# CORS ayarları - Session için credentials gerekli
+CORS(app, supports_credentials=True, origins=['http://localhost:3002', 'http://localhost:3000', 'http://localhost:3001'])
 
 # ------------------------------------------------------------
 # LOGGING AYARI
@@ -908,6 +915,189 @@ def rapor_bilet_istatistik():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# AUTHENTİCATİON ENDPOİNTLERİ
+# ============================================
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """Yeni kullanıcı kaydı"""
+    try:
+        data = request.get_json()
+
+        # Zorunlu alanları kontrol et
+        required_fields = ['kullanici_adi', 'eposta', 'sifre', 'ad_soyad']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'error': f'{field} alanı zorunludur'}), 400
+
+        kullanici_adi = data['kullanici_adi']
+        eposta = data['eposta']
+        sifre = data['sifre']
+        ad_soyad = data['ad_soyad']
+        telefon = data.get('telefon', '')
+
+        # Kullanıcı adı ve eposta kontrolü
+        existing_user = db.execute_query(
+            "SELECT kullanici_id FROM Kullanici WHERE kullanici_adi = %s OR eposta = %s",
+            (kullanici_adi, eposta),
+            fetch=True
+        )
+
+        if existing_user:
+            return jsonify({'success': False, 'error': 'Bu kullanıcı adı veya eposta zaten kullanılıyor'}), 400
+
+        # Şifreyi hash'le
+        sifre_hash = bcrypt.hashpw(sifre.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+        # Kullanıcıyı kaydet
+        db.execute_query(
+            """INSERT INTO Kullanici (kullanici_adi, eposta, sifre_hash, ad_soyad, telefon, rol)
+               VALUES (%s, %s, %s, %s, %s, 'kullanici')""",
+            (kullanici_adi, eposta, sifre_hash, ad_soyad, telefon)
+        )
+        user_id = db.get_last_insert_id()
+
+        logger.info(f"Yeni kullanıcı kaydedildi: {kullanici_adi} (ID: {user_id})")
+
+        return jsonify({
+            'success': True,
+            'message': 'Kayıt başarılı',
+            'data': {
+                'kullanici_id': user_id,
+                'kullanici_adi': kullanici_adi
+            }
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Register hatası: {str(e)}")
+        return jsonify({'success': False, 'error': 'Kayıt sırasında bir hata oluştu'}), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Kullanıcı girişi"""
+    try:
+        data = request.get_json()
+
+        kullanici_adi = data.get('kullanici_adi')
+        sifre = data.get('sifre')
+
+        if not kullanici_adi or not sifre:
+            return jsonify({'success': False, 'error': 'Kullanıcı adı ve şifre gereklidir'}), 400
+
+        # Kullanıcıyı bul
+        user = db.execute_query(
+            """SELECT kullanici_id, kullanici_adi, eposta, sifre_hash, ad_soyad, telefon, rol, aktif
+               FROM Kullanici WHERE kullanici_adi = %s""",
+            (kullanici_adi,),
+            fetch=True
+        )
+
+        if not user or len(user) == 0:
+            return jsonify({'success': False, 'error': 'Kullanıcı adı veya şifre hatalı'}), 401
+
+        user_data = user[0]
+        # Dict olarak al
+        kullanici_id = user_data['kullanici_id']
+        kul_adi = user_data['kullanici_adi']
+        eposta = user_data['eposta']
+        sifre_hash = user_data['sifre_hash']
+        ad_soyad = user_data['ad_soyad']
+        telefon = user_data['telefon']
+        rol = user_data['rol']
+        aktif = user_data['aktif']
+
+        # Aktif mi kontrol et (MySQL BOOLEAN/TINYINT bazen True/False, bazen 1/0 döndürür)
+        if not aktif:
+            return jsonify({'success': False, 'error': 'Hesabınız devre dışı bırakılmış'}), 403
+
+        # Şifre kontrolü
+        if not bcrypt.checkpw(sifre.encode('utf-8'), sifre_hash.encode('utf-8')):
+            return jsonify({'success': False, 'error': 'Kullanıcı adı veya şifre hatalı'}), 401
+
+        # Session oluştur
+        session.permanent = True
+        session['user_id'] = kullanici_id
+        session['kullanici_adi'] = kul_adi
+        session['rol'] = rol
+
+        # Last login güncelle
+        db.execute_query(
+            "UPDATE Kullanici SET last_login = NOW() WHERE kullanici_id = %s",
+            (kullanici_id,)
+        )
+
+        logger.info(f"Kullanıcı giriş yaptı: {kul_adi} (Rol: {rol})")
+
+        return jsonify({
+            'success': True,
+            'message': 'Giriş başarılı',
+            'data': {
+                'kullanici_id': kullanici_id,
+                'kullanici_adi': kul_adi,
+                'eposta': eposta,
+                'ad_soyad': ad_soyad,
+                'telefon': telefon,
+                'rol': rol
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Login hatası: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Giriş sırasında bir hata oluştu'}), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """Kullanıcı çıkışı"""
+    try:
+        kullanici_adi = session.get('kullanici_adi', 'Bilinmeyen')
+        session.clear()
+        logger.info(f"Kullanıcı çıkış yaptı: {kullanici_adi}")
+        return jsonify({'success': True, 'message': 'Çıkış başarılı'}), 200
+    except Exception as e:
+        logger.error(f"Logout hatası: {str(e)}")
+        return jsonify({'success': False, 'error': 'Çıkış sırasında bir hata oluştu'}), 500
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_current_user():
+    """Mevcut kullanıcı bilgilerini getir (session kontrolü)"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user = db.execute_query(
+            """SELECT kullanici_id, kullanici_adi, eposta, ad_soyad, telefon, rol
+               FROM Kullanici WHERE kullanici_id = %s AND aktif = TRUE""",
+            (session['user_id'],),
+            fetch=True
+        )
+
+        if not user or len(user) == 0:
+            session.clear()
+            return jsonify({'success': False, 'error': 'Kullanıcı bulunamadı'}), 404
+
+        user_data = user[0]
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'kullanici_id': user_data[0],
+                'kullanici_adi': user_data[1],
+                'eposta': user_data[2],
+                'ad_soyad': user_data[3],
+                'telefon': user_data[4],
+                'rol': user_data[5]
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get current user hatası: {str(e)}")
+        return jsonify({'success': False, 'error': 'Kullanıcı bilgileri alınamadı'}), 500
+
 
 # ============================================
 # HATA YÖNETİMİ
