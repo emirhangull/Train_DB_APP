@@ -24,6 +24,8 @@ import {
 } from '../services/api';
 
 const pricePerSeat = 250; // Basit sabit fiyat; istenirse dinamik hale getirilebilir
+const sanitizePhone = (value) => value.replace(/[^\d\s]/g, '');
+const sanitizeName = (value) => value.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü\s]/g, '');
 
 export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
   const [koltuklar, setKoltuklar] = useState([]);
@@ -88,9 +90,15 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
   };
 
   const handlePassengerChange = (index, field, value) => {
+    let nextValue = value;
+    if (field === 'telefon') {
+      nextValue = sanitizePhone(value);
+    } else if (field === 'ad_soyad') {
+      nextValue = sanitizeName(value);
+    }
     setPassengers((prev) => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
+      copy[index] = { ...copy[index], [field]: nextValue };
       return copy;
     });
   };
@@ -115,9 +123,19 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
           setSubmitting(false);
           return;
         }
+        if (p.telefon && !/^[0-9 ]+$/.test(p.telefon)) {
+          setError('Telefon numarası sadece rakam ve boşluk içerebilir.');
+          setSubmitting(false);
+          return;
+        }
       }
 
       // Rezervasyon isteği
+      const sanitizedPassengers = passengers.map((p) => ({
+        ad_soyad: sanitizeName(p.ad_soyad.trim()),
+        eposta: p.eposta.trim(),
+        telefon: sanitizePhone(p.telefon.trim())
+      }));
       const biletler = selectedSeats.map((seatNo, idx) => ({
         sefer_id: sefer.sefer_id,
         yolcu_index: idx,
@@ -125,7 +143,7 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
         fiyat: pricePerSeat
       }));
       const payload = {
-        yolcular: passengers,
+        yolcular: sanitizedPassengers,
         biletler
       };
 

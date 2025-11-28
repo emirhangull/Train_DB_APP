@@ -43,9 +43,6 @@ INSERT INTO Yolcu (ad_soyad, eposta, telefon) VALUES
 INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES
 ('ABC123XYZ', 'odendi', 2);
 
--- Rezervasyon 2: Oluşturuldu (henüz ödenmedi - ayse456)
-INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES
-('DEF456UVW', 'olusturuldu', 3);
 
 -- 7. Biletler (4 adet)
 -- Rezervasyon 1 için 2 bilet (Ankara -> İstanbul seferi)
