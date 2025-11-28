@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import random
 import string
 import logging, os
-import bcrypt
 from logging.handlers import RotatingFileHandler
 from database import db
 
@@ -998,8 +997,8 @@ def register():
         if existing_user:
             return jsonify({'success': False, 'error': 'Bu kullanıcı adı veya eposta zaten kullanılıyor'}), 400
 
-        # Şifreyi hash'le
-        sifre_hash = bcrypt.hashpw(sifre.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        # İstenmediği için şifreyi hashlemeden sakla
+        sifre_hash = sifre
 
         # Kullanıcıyı kaydet
         db.execute_query(
@@ -1064,7 +1063,7 @@ def login():
             return jsonify({'success': False, 'error': 'Hesabınız devre dışı bırakılmış'}), 403
 
         # Şifre kontrolü
-        if not bcrypt.checkpw(sifre.encode('utf-8'), sifre_hash.encode('utf-8')):
+        if sifre != sifre_hash:
             return jsonify({'success': False, 'error': 'Kullanıcı adı veya şifre hatalı'}), 401
 
         # Session oluştur
