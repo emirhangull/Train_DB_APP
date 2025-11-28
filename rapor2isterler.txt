@@ -1,0 +1,17 @@
+Son rapor (son yükleme tarihi 3 Aralık 2025 ,  23:59)
+Son rapor içeriğinde aşağıdaki bilgiler olacaktır.
+1. Gerçek dünya probleminin tanımı
+2. Gereksinim analizi
+3. Kavramsal tasarım (EER-diyagramları)
+4. Mantıksal tasarım ve sema diyagramları
+5. Tasarımın Uyarlanması
+Uygulama programı iki yada üç katmanlı olacak ve ODBC/JDBC kullanarak veritabanına ulaşacaktır.
+Uyarlanan bilgisayar yazılım, donanım ortam bilgileri ve seçilen VTYS hakkında bilgiler
+Tabloların oluşturulması
+Görüntüler (view)
+Veri yükleme
+İndisler (index ) 
+Sorgu tasarımları
+6. Uygulama program tanıtım ve örnek kullanım.
+7. Sonuç
+8. Referanslar
