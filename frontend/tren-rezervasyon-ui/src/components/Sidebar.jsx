@@ -15,12 +15,12 @@ export default function Sidebar() {
       <ul className="sidebar-links">
         <li>
           <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-            Ana Sayfa
+            Seferler
           </NavLink>
         </li>
         <li>
           <NavLink to="/seferler" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-            Seferler
+            PNR ile Bilet Sorgula
           </NavLink>
         </li>
         {!isAdmin && (
