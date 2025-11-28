@@ -208,9 +208,32 @@ def get_trenler():
 def create_tren():
     """Yeni tren ekle"""
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        if session.get('rol') != 'admin':
+            return jsonify({'success': False, 'error': 'Bu işlem için yetkiniz yok'}), 403
+
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Geçersiz istek verisi'}), 400
+
+        kod = (data.get('kod') or '').strip()
+        koltuk_sayisi = data.get('koltuk_sayisi')
+
+        if not kod:
+            return jsonify({'success': False, 'error': 'Tren kodu zorunludur'}), 400
+
+        try:
+            koltuk_sayisi = int(koltuk_sayisi)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Koltuk sayısı sayısal olmalıdır'}), 400
+
+        if koltuk_sayisi <= 0:
+            return jsonify({'success': False, 'error': 'Koltuk sayısı pozitif olmalıdır'}), 400
+
         query = "INSERT INTO Tren (kod, koltuk_sayisi) VALUES (%s, %s)"
-        db.execute_query(query, (data['kod'], data['koltuk_sayisi']))
+        db.execute_query(query, (kod, koltuk_sayisi))
         tren_id = db.get_last_insert_id()
         return jsonify({
             'success': True,
@@ -351,19 +374,64 @@ def get_sefer_koltuklar(sefer_id):
 def create_sefer():
     """Yeni sefer oluştur"""
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+        
+        if session.get('rol') != 'admin':
+            return jsonify({'success': False, 'error': 'Bu işlem için yetkiniz yok'}), 403
+
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Geçersiz istek verisi'}), 400
+
+        required_fields = ['tren_id', 'kalkis_istasyon_id', 'varis_istasyon_id', 'kalkis_zamani', 'varis_zamani']
+        for field in required_fields:
+            if field not in data or data[field] in (None, ''):
+                return jsonify({'success': False, 'error': f'{field} alanı zorunludur'}), 400
+
+        try:
+            tren_id = int(data['tren_id'])
+            kalkis_istasyon_id = int(data['kalkis_istasyon_id'])
+            varis_istasyon_id = int(data['varis_istasyon_id'])
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Tren ve istasyon bilgileri sayısal olmalıdır'}), 400
+
+        if kalkis_istasyon_id == varis_istasyon_id:
+            return jsonify({'success': False, 'error': 'Kalkış ve varış istasyonu farklı olmalıdır'}), 400
+
+        def parse_datetime(value):
+            value = value.strip()
+            if value.endswith('Z'):
+                value = value[:-1]
+            # datetime-local formatı için T'yi boşlukla değiştir
+            if 'T' in value and ' ' not in value:
+                value = value.replace('T', ' ')
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                return None
+
+        kalkis_dt = parse_datetime(str(data['kalkis_zamani']))
+        varis_dt = parse_datetime(str(data['varis_zamani']))
+
+        if not kalkis_dt or not varis_dt:
+            return jsonify({'success': False, 'error': 'Tarih formatı geçersiz'}), 400
+
+        if varis_dt <= kalkis_dt:
+            return jsonify({'success': False, 'error': 'Varış zamanı kalkıştan sonra olmalıdır'}), 400
+
         query = """
             INSERT INTO Sefer 
             (tren_id, kalkis_istasyon_id, varis_istasyon_id, kalkis_zamani, varis_zamani, durum) 
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         db.execute_query(query, (
-            data['tren_id'],
-            data['kalkis_istasyon_id'],
-            data['varis_istasyon_id'],
-            data['kalkis_zamani'],
-            data['varis_zamani'],
-            data.get('durum', 'planli')
+            tren_id,
+            kalkis_istasyon_id,
+            varis_istasyon_id,
+            kalkis_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            varis_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            data.get('durum', 'satisa_acik')
         ))
         sefer_id = db.get_last_insert_id()
         return jsonify({

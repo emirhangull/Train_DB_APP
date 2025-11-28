@@ -67,6 +67,8 @@ CREATE TABLE Yolcu (
     eposta VARCHAR(150) NOT NULL UNIQUE,
     telefon VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (ad_soyad REGEXP '^[A-Za-zÇĞİÖŞÜçğıöşü ]+$'),
+    CHECK (telefon IS NULL OR telefon = '' OR telefon REGEXP '^[0-9 ]+$'),
     INDEX idx_eposta (eposta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
