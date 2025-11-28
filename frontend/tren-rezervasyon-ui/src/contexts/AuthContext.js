@@ -1,7 +1,4 @@
-/**
- * Authentication Context
- * Kullanıcı oturum yönetimi
- */
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { login as apiLogin, logout as apiLogout, register as apiRegister, getCurrentUser } from '../services/api';
 
@@ -20,7 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sayfa yüklendiğinde mevcut kullanıcıyı kontrol et
   useEffect(() => {
     checkAuth();
   }, []);
@@ -33,7 +29,6 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.data);
       }
     } catch (error) {
-      // Kullanıcı oturumu yoksa hata gelecek, bu normal
       setUser(null);
     } finally {
       setLoading(false);
@@ -72,7 +67,6 @@ export const AuthProvider = ({ children }) => {
       const response = await apiRegister(userData);
 
       if (response.data.success) {
-        // Kayıt başarılı, otomatik giriş yap
         return await login(userData.kullanici_adi, userData.sifre);
       } else {
         setError(response.data.error);

@@ -1,7 +1,4 @@
-"""
-Veritabanı Bağlantı Modülü
-MySQL bağlantısını yönetir - Connection Pooling ile
-"""
+
 import mysql.connector
 from mysql.connector import Error, pooling
 import os
@@ -46,7 +43,6 @@ class Database:
             if self.pool:
                 return self.pool.get_connection()
             else:
-                # Pool yoksa direkt bağlantı oluştur (fallback)
                 connection = mysql.connector.connect(
                     host=self.host,
                     user=self.user,
@@ -84,7 +80,6 @@ class Database:
                 return result
             else:
                 connection.commit()
-                # INSERT ise lastrowid anlamlıdır
                 self._last_insert_id = cursor.lastrowid
                 return cursor.rowcount
 
@@ -134,5 +129,4 @@ class Database:
         """Son execute_query çağrısında oluşan AUTO_INCREMENT ID'yi döndür."""
         return self._last_insert_id
 
-# Global database instance
 db = Database()

@@ -1,5 +1,3 @@
-# PowerShell script to start Train Reservation backend in a persistent foreground
-# Usage: Right-click -> Run with PowerShell OR execute: powershell -ExecutionPolicy Bypass -File .\start_backend.ps1
 
 $ErrorActionPreference = 'Stop'
 

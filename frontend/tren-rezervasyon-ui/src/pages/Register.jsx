@@ -1,7 +1,4 @@
-/**
- * Register Page
- * Kullanıcı kayıt sayfası
- */
+
 import React, { useState } from 'react';
 import {
   Container,
@@ -43,7 +40,6 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!formData.kullanici_adi || !formData.eposta || !formData.sifre || !formData.ad_soyad) {
       setError('Lütfen zorunlu alanları doldurun');
       return;
@@ -59,7 +55,6 @@ export default function Register() {
       return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.eposta)) {
       setError('Geçerli bir e-posta adresi girin');
@@ -77,7 +72,6 @@ export default function Register() {
     setLoading(false);
 
     if (result.success) {
-      // Başarılı kayıt ve otomatik giriş, ana sayfaya yönlendir
       navigate('/');
     } else {
       setError(result.error || 'Kayıt olurken bir hata oluştu');

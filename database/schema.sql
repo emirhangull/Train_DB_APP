@@ -1,12 +1,8 @@
--- Tren Bileti Satış ve Rezervasyon Sistemi
--- MySQL Veritabanı Şeması
 
--- Veritabanı oluştur
 DROP DATABASE IF EXISTS tren_rezervasyon_db;
 CREATE DATABASE tren_rezervasyon_db CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci;
 USE tren_rezervasyon_db;
 
--- 1. İstasyon Tablosu
 CREATE TABLE Istasyon (
     istasyon_id INT AUTO_INCREMENT PRIMARY KEY,
     ad VARCHAR(100) NOT NULL,
@@ -15,7 +11,6 @@ CREATE TABLE Istasyon (
     INDEX idx_sehir (sehir)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 2. Tren Tablosu
 CREATE TABLE Tren (
     tren_id INT AUTO_INCREMENT PRIMARY KEY,
     kod VARCHAR(20) NOT NULL UNIQUE,
@@ -24,7 +19,6 @@ CREATE TABLE Tren (
     CHECK (koltuk_sayisi > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 3. Sefer Tablosu
 CREATE TABLE Sefer (
     sefer_id INT AUTO_INCREMENT PRIMARY KEY,
     tren_id INT NOT NULL,
@@ -43,7 +37,6 @@ CREATE TABLE Sefer (
     INDEX idx_durum (durum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 4. Kullanıcı Tablosu (Authentication)
 CREATE TABLE Kullanici (
     kullanici_id INT AUTO_INCREMENT PRIMARY KEY,
     kullanici_adi VARCHAR(50) NOT NULL UNIQUE,
@@ -60,7 +53,6 @@ CREATE TABLE Kullanici (
     INDEX idx_rol (rol)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 5. Yolcu Tablosu
 CREATE TABLE Yolcu (
     yolcu_id INT AUTO_INCREMENT PRIMARY KEY,
     ad_soyad VARCHAR(150) NOT NULL,
@@ -72,7 +64,6 @@ CREATE TABLE Yolcu (
     INDEX idx_eposta (eposta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 6. Rezervasyon Tablosu
 CREATE TABLE Rezervasyon (
     rezervasyon_id INT AUTO_INCREMENT PRIMARY KEY,
     pnr VARCHAR(10) NOT NULL UNIQUE,
@@ -87,7 +78,6 @@ CREATE TABLE Rezervasyon (
     INDEX idx_rez_kullanici (kullanici_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 7. Bilet Tablosu
 CREATE TABLE Bilet (
     bilet_id INT AUTO_INCREMENT PRIMARY KEY,
     rezervasyon_id INT NOT NULL,
@@ -100,15 +90,13 @@ CREATE TABLE Bilet (
     FOREIGN KEY (rezervasyon_id) REFERENCES Rezervasyon(rezervasyon_id) ON DELETE CASCADE,
     FOREIGN KEY (sefer_id) REFERENCES Sefer(sefer_id) ON DELETE RESTRICT,
     FOREIGN KEY (yolcu_id) REFERENCES Yolcu(yolcu_id) ON DELETE RESTRICT,
-    -- UNIQUE KEY kaldırıldı: İade edilen koltuklar tekrar rezerve edilebilmeli
-    -- Uygulama katmanında durum != 'iade' kontrolü yapılıyor
+   
     CHECK (fiyat > 0),
     CHECK (koltuk_no > 0),
     INDEX idx_rezervasyon (rezervasyon_id),
     INDEX idx_sefer (sefer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- 8. Ödeme Tablosu
 CREATE TABLE Odeme (
     odeme_id INT AUTO_INCREMENT PRIMARY KEY,
     rezervasyon_id INT NOT NULL UNIQUE,
@@ -121,7 +109,6 @@ CREATE TABLE Odeme (
     INDEX idx_durum (durum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
--- Trigger: Koltuk numarasının tren kapasitesini aşmaması kontrolü
 DELIMITER //
 CREATE TRIGGER check_koltuk_no_before_insert
 BEFORE INSERT ON Bilet
@@ -155,7 +142,6 @@ BEGIN
     END IF;
 END//
 
--- Trigger: Rezervasyon toplam tutarını otomatik güncelle
 CREATE TRIGGER update_rezervasyon_tutar_after_insert
 AFTER INSERT ON Bilet
 FOR EACH ROW
@@ -197,7 +183,6 @@ END//
 
 DELIMITER ;
 
--- View: Sefer Detayları (kullanıcı arama için)
 CREATE VIEW vw_sefer_detay AS
 SELECT 
     s.sefer_id,
@@ -220,7 +205,6 @@ LEFT JOIN Bilet b ON s.sefer_id = b.sefer_id AND b.durum != 'iade'
 GROUP BY s.sefer_id, s.kalkis_zamani, s.varis_zamani, s.durum,
          ik.ad, ik.sehir, iv.ad, iv.sehir, t.kod, t.koltuk_sayisi;
 
--- View: Rezervasyon Özeti
 CREATE VIEW vw_rezervasyon_ozet AS
 SELECT 
     r.rezervasyon_id,

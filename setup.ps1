@@ -1,5 +1,3 @@
-# Tren Rezervasyon Sistemi - Otomatik Kurulum Scripti
-# PowerShell ile çalıştırın: .\setup.ps1
 
 Write-Host "=" -NoNewline -ForegroundColor Cyan
 Write-Host ("=" * 78) -ForegroundColor Cyan
@@ -7,11 +5,9 @@ Write-Host "  TREN REZERVASYON SİSTEMİ - OTOMATIK KURULUM" -ForegroundColor Ye
 Write-Host ("=" * 79) -ForegroundColor Cyan
 Write-Host ""
 
-# Gerekli yazılımların kontrolü
 Write-Host "1. Gerekli yazılımlar kontrol ediliyor..." -ForegroundColor Green
 Write-Host ""
 
-# Python kontrolü
 Write-Host "  Checking Python..." -NoNewline
 try {
     $pythonVersion = python --version 2>&1
@@ -22,7 +18,6 @@ try {
     exit 1
 }
 
-# Node.js kontrolü
 Write-Host "  Checking Node.js..." -NoNewline
 try {
     $nodeVersion = node --version 2>&1
@@ -33,7 +28,6 @@ try {
     exit 1
 }
 
-# MySQL kontrolü
 Write-Host "  Checking MySQL..." -NoNewline
 try {
     $mysqlVersion = mysql --version 2>&1
@@ -47,29 +41,24 @@ try {
 Write-Host ""
 Write-Host ("=" * 79) -ForegroundColor Cyan
 
-# Backend kurulumu
 Write-Host ""
 Write-Host "2. Backend kurulumu başlıyor..." -ForegroundColor Green
 Write-Host ""
 
 Set-Location backend
 
-# Virtual environment oluştur
 Write-Host "  Virtual environment oluşturuluyor..." -NoNewline
 python -m venv venv
 Write-Host " ✓" -ForegroundColor Green
 
-# Virtual environment'ı aktif et
 Write-Host "  Virtual environment aktif ediliyor..." -NoNewline
 & .\venv\Scripts\Activate.ps1
 Write-Host " ✓" -ForegroundColor Green
 
-# Bağımlılıkları yükle
 Write-Host "  Python bağımlılıkları yükleniyor..." -NoNewline
 pip install -q -r requirements.txt
 Write-Host " ✓" -ForegroundColor Green
 
-# .env dosyası oluştur
 if (-not (Test-Path .env)) {
     Write-Host "  .env dosyası oluşturuluyor..." -NoNewline
     Copy-Item .env.example .env
@@ -85,7 +74,6 @@ Set-Location ..
 Write-Host ""
 Write-Host ("=" * 79) -ForegroundColor Cyan
 
-# Veritabanı kurulumu
 Write-Host ""
 Write-Host "3. Veritabanı kurulumu" -ForegroundColor Green
 Write-Host ""
@@ -124,7 +112,6 @@ if ($setupDB -eq "y" -or $setupDB -eq "Y") {
 Write-Host ""
 Write-Host ("=" * 79) -ForegroundColor Cyan
 
-# Frontend kurulumu
 Write-Host ""
 Write-Host "4. Frontend kurulumu" -ForegroundColor Green
 Write-Host ""
@@ -157,7 +144,6 @@ if ($setupFrontend -eq "y" -or $setupFrontend -eq "Y") {
 Write-Host ""
 Write-Host ("=" * 79) -ForegroundColor Cyan
 
-# Özet
 Write-Host ""
 Write-Host "✅ KURULUM TAMAMLANDI!" -ForegroundColor Green
 Write-Host ""

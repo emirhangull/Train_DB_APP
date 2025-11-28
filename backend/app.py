@@ -1,7 +1,3 @@
-"""
-Flask REST API Ana Dosyası
-Tren Rezervasyon Sistemi
-"""
 from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from datetime import datetime, timedelta
@@ -13,21 +9,15 @@ from database import db
 
 app = Flask(__name__)
 
-# Güvenlik: SECRET_KEY (session, cookie imzalama vb. için)
-# Üretim ortamında mutlaka değiştirin!
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Session ayarları
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Development için False, production'da True olmalı
+app.config['SESSION_COOKIE_SECURE'] = False  
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# CORS ayarları - Session için credentials gerekli
 CORS(app, supports_credentials=True, origins=['http://localhost:3002', 'http://localhost:3000', 'http://localhost:3001'])
 
-# ------------------------------------------------------------
-# LOGGING AYARI
-# ------------------------------------------------------------
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -36,7 +26,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("tren-rezervasyon")
 
-# File logging (rotating)
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 file_handler = RotatingFileHandler(
@@ -49,19 +38,14 @@ file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(mes
 logger.addHandler(file_handler)
 logger.info("Dosya loglama etkin: %s", file_handler.baseFilename)
 
-# Veritabanı bağlantısı artık her endpoint içinde açılıp kapatılır
 logger.info("Veritabanı modulu yüklendi.")
 
-# ============================================
-# YARDIMCI FONKSİYONLAR
-# ============================================
-
+#PNR kodu üretme fonksiyonu
 def generate_pnr():
-    """6 haneli benzersiz PNR kodu üret"""
+    
     max_attempts = 10
     for _ in range(max_attempts):
         pnr = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        # PNR'nin benzersiz olduğunu kontrol et
         check = db.execute_query(
             "SELECT 1 FROM Rezervasyon WHERE pnr = %s LIMIT 1",
             (pnr,),
@@ -69,7 +53,6 @@ def generate_pnr():
         )
         if not check:
             return pnr
-    # Eğer 10 denemede benzersiz PNR bulunamazsa, daha uzun bir kod üret
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
 def format_datetime(dt):
@@ -78,9 +61,6 @@ def format_datetime(dt):
         return dt.strftime('%Y-%m-%d %H:%M:%S')
     return dt
 
-# ============================================
-# GENEL API ENDPOİNTLERİ
-# ============================================
 
 @app.route('/')
 def index():
@@ -115,9 +95,6 @@ def health():
         'timestamp': datetime.now().isoformat()
     })
 
-# ============================================
-# İSTASYON API
-# ============================================
 
 @app.route('/api/istasyonlar', methods=['GET'])
 def get_istasyonlar():
@@ -186,9 +163,6 @@ def delete_istasyon(istasyon_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# TREN API
-# ============================================
 
 @app.route('/api/trenler', methods=['GET'])
 def get_trenler():
@@ -268,9 +242,6 @@ def delete_tren(tren_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# SEFER API
-# ============================================
 
 @app.route('/api/seferler', methods=['GET'])
 def get_seferler():
@@ -279,7 +250,6 @@ def get_seferler():
         query = "SELECT * FROM vw_sefer_detay ORDER BY kalkis_zamani"
         seferler = db.execute_query(query, fetch=True)
         
-        # Datetime objelerini string'e çevir
         for sefer in seferler:
             sefer['kalkis_zamani'] = format_datetime(sefer['kalkis_zamani'])
             sefer['varis_zamani'] = format_datetime(sefer['varis_zamani'])
@@ -298,7 +268,7 @@ def ara_sefer():
     try:
         kalkis_sehir = request.args.get('kalkis_sehir')
         varis_sehir = request.args.get('varis_sehir')
-        tarih = request.args.get('tarih')  # YYYY-MM-DD formatında
+        tarih = request.args.get('tarih')  
         
         query = """
             SELECT * FROM vw_sefer_detay 
@@ -311,7 +281,6 @@ def ara_sefer():
         
         seferler = db.execute_query(query, (kalkis_sehir, varis_sehir, tarih), fetch=True)
         
-        # Datetime objelerini string'e çevir
         for sefer in seferler:
             sefer['kalkis_zamani'] = format_datetime(sefer['kalkis_zamani'])
             sefer['varis_zamani'] = format_datetime(sefer['varis_zamani'])
@@ -328,7 +297,6 @@ def ara_sefer():
 def get_sefer_koltuklar(sefer_id):
     """Seferdeki dolu ve boş koltukları getir"""
     try:
-        # Trenin toplam koltuk sayısını al
         query1 = """
             SELECT t.koltuk_sayisi 
             FROM Sefer s 
@@ -342,7 +310,6 @@ def get_sefer_koltuklar(sefer_id):
         
         toplam_koltuk = result[0]['koltuk_sayisi']
         
-        # Dolu koltukları al
         query2 = """
             SELECT koltuk_no, durum 
             FROM Bilet 
@@ -351,7 +318,6 @@ def get_sefer_koltuklar(sefer_id):
         dolu_koltuklar = db.execute_query(query2, (sefer_id,), fetch=True)
         dolu_koltuk_nolar = [k['koltuk_no'] for k in dolu_koltuklar]
         
-        # Tüm koltukların durumunu oluştur
         koltuklar = []
         for i in range(1, toplam_koltuk + 1):
             koltuklar.append({
@@ -403,7 +369,6 @@ def create_sefer():
             value = value.strip()
             if value.endswith('Z'):
                 value = value[:-1]
-            # datetime-local formatı için T'yi boşlukla değiştir
             if 'T' in value and ' ' not in value:
                 value = value.replace('T', ' ')
             try:
@@ -454,9 +419,6 @@ def delete_sefer(sefer_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# YOLCU API
-# ============================================
 
 @app.route('/api/yolcular', methods=['GET'])
 def get_yolcular():
@@ -478,7 +440,6 @@ def create_yolcu():
     try:
         data = request.get_json()
         
-        # Önce e-posta ile kontrol et
         query_check = "SELECT * FROM Yolcu WHERE eposta = %s"
         existing = db.execute_query(query_check, (data['eposta'],), fetch=True)
         
@@ -489,7 +450,6 @@ def create_yolcu():
                 'data': existing[0]
             })
         
-        # Yoksa yeni yolcu ekle
         query = "INSERT INTO Yolcu (ad_soyad, eposta, telefon) VALUES (%s, %s, %s)"
         db.execute_query(query, (data['ad_soyad'], data['eposta'], data.get('telefon', '')))
         yolcu_id = db.get_last_insert_id()
@@ -507,9 +467,6 @@ def create_yolcu():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# REZERVASYON API
-# ============================================
 
 @app.route('/api/rezervasyonlar', methods=['GET'])
 def get_rezervasyonlar():
@@ -551,7 +508,6 @@ def get_rezervasyon_by_pnr(pnr):
         user_id = session['user_id']
         is_admin = session.get('rol') == 'admin'
 
-        # Rezervasyon bilgisi
         query1 = """
             SELECT r.*, o.yontem as odeme_yontem, o.durum as odeme_durum
             FROM Rezervasyon r
@@ -569,7 +525,6 @@ def get_rezervasyon_by_pnr(pnr):
 
         rezervasyon['olusturulma_zamani'] = format_datetime(rezervasyon['olusturulma_zamani'])
         
-        # Bilet bilgileri
         query2 = """
             SELECT b.*, y.ad_soyad, y.eposta, y.telefon,
                    s.kalkis_zamani, s.varis_zamani,
@@ -621,7 +576,6 @@ def create_rezervasyon():
         user_id = session['user_id']
         data = request.get_json()
 
-        # 0. Koltuk uygunluk kontrolü (ön kontrol)
         conflicts = []
         for bilet in data.get('biletler', []):
             check = db.execute_query(
@@ -641,10 +595,8 @@ def create_rezervasyon():
                 'conflicts': conflicts
             }), 409
 
-        # 1. Yolcuları ekle/getir
         yolcu_ids = []
         for yolcu_data in data['yolcular']:
-            # E-posta ile kontrol
             query_check = "SELECT yolcu_id FROM Yolcu WHERE eposta = %s"
             existing = db.execute_query(query_check, (yolcu_data['eposta'],), fetch=True)
 
@@ -659,7 +611,6 @@ def create_rezervasyon():
                 ))
                 yolcu_ids.append(db.get_last_insert_id())
 
-        # 2. Rezervasyon oluştur (PNR benzersizlik kontrolü ile)
         max_pnr_attempts = 10
         rezervasyon_id = None
         pnr = None
@@ -669,32 +620,29 @@ def create_rezervasyon():
                 query_rez = "INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES (%s, 'olusturuldu', %s)"
                 db.execute_query(query_rez, (pnr, user_id))
                 rezervasyon_id = db.get_last_insert_id()
-                break  # Başarılı, döngüden çık
+                break 
             except Exception as pnr_error:
                 if 'Duplicate entry' in str(pnr_error) or 'UNIQUE' in str(pnr_error):
                     if attempt == max_pnr_attempts - 1:
                         raise Exception("PNR oluşturulamadı. Lütfen tekrar deneyin.")
-                    continue  # Tekrar dene
+                    continue  
                 else:
-                    raise  # Başka bir hata, yukarı fırlat
+                    raise  
         
         if not rezervasyon_id:
             raise Exception("Rezervasyon oluşturulamadı.")
 
-        # 3. Biletleri ekle
-        eklenen_biletler = []  # Hata durumunda temizlik için
-        try:
+        eklenen_biletler = []
+        try: 
             for bilet_data in data['biletler']:
                 yolcu_id = yolcu_ids[bilet_data['yolcu_index']]
                 
-                # Son kontrol: Koltuk hala boş mu? (race condition için)
                 final_check = db.execute_query(
                     "SELECT 1 FROM Bilet WHERE sefer_id = %s AND koltuk_no = %s AND durum != 'iade' LIMIT 1",
                     (bilet_data['sefer_id'], bilet_data['koltuk_no']),
                     fetch=True
                 )
                 if final_check:
-                    # Eğer koltuk doluysa, rezervasyonu iptal et ve eklenen biletleri temizle
                     if eklenen_biletler:
                         db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
                                         ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
@@ -720,9 +668,7 @@ def create_rezervasyon():
                     bilet_id = db.get_last_insert_id()
                     eklenen_biletler.append(bilet_id)
                 except Exception as insert_error:
-                    # UNIQUE KEY hatası yakalanırsa (eğer hala varsa)
                     if 'Duplicate entry' in str(insert_error) or 'UNIQUE' in str(insert_error):
-                        # Eklenen biletleri temizle
                         if eklenen_biletler:
                             db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
                                             ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
@@ -731,19 +677,18 @@ def create_rezervasyon():
                             'success': False,
                             'error': f'Koltuk {bilet_data["koltuk_no"]} zaten rezerve edilmiş.'
                         }), 409
-                    raise  # Diğer hatalar için yukarı fırlat
+                    raise  
         except Exception as bilet_error:
-            # Beklenmeyen hata durumunda eklenen biletleri temizle
             if eklenen_biletler:
                 try:
                     db.execute_query("UPDATE Bilet SET durum = 'iade' WHERE bilet_id IN (%s)" % 
                                     ','.join(['%s'] * len(eklenen_biletler)), tuple(eklenen_biletler))
                     db.execute_query("UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s", (rezervasyon_id,))
                 except:
-                    pass  # Temizlik hatası görmezden gel
-            raise  # Orijinal hatayı yukarı fırlat
+                    pass 
+            raise  
 
-        # 4. Toplam tutarı güncelle (trigger otomatik yapıyor ama yine de kontrol edelim)
+       
         query_tutar = """
             SELECT SUM(fiyat) as toplam 
             FROM Bilet 
@@ -786,11 +731,9 @@ def iptal_rezervasyon(rezervasyon_id):
         if not is_admin and kontrol[0]['kullanici_id'] != user_id:
             return jsonify({'success': False, 'error': 'Bu rezervasyonu iptal etme yetkiniz yok'}), 403
 
-        # Rezervasyon durumunu iptal yap
         query1 = "UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s"
         db.execute_query(query1, (rezervasyon_id,))
         
-        # İlgili biletleri iade et
         query2 = "UPDATE Bilet SET durum = 'iade' WHERE rezervasyon_id = %s"
         db.execute_query(query2, (rezervasyon_id,))
         
@@ -800,10 +743,6 @@ def iptal_rezervasyon(rezervasyon_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-# ============================================
-# ÖDEME API
-# ============================================
 
 @app.route('/api/odemeler', methods=['POST'])
 def create_odeme():
@@ -823,7 +762,6 @@ def create_odeme():
         is_admin = session.get('rol') == 'admin'
         data = request.get_json()
 
-        # Rezervasyon bilgisini ve mevcut ödeme durumunu kontrol et
         query_rez = "SELECT toplam_tutar, durum, kullanici_id FROM Rezervasyon WHERE rezervasyon_id = %s"
         rez_result = db.execute_query(query_rez, (data['rezervasyon_id'],), fetch=True)
 
@@ -846,14 +784,12 @@ def create_odeme():
 
         toplam_tutar = float(rez_result[0]['toplam_tutar'])
 
-        # Tutar kontrolü
         if abs(float(data['tutar']) - toplam_tutar) > 0.01:
             return jsonify({
                 'success': False,
                 'error': f'Ödeme tutarı rezervasyon tutarı ile eşleşmiyor. Beklenen: {toplam_tutar}'
             }), 400
 
-        # Mock ödeme (her zaman başarılı)
         query_odeme = """
             INSERT INTO Odeme 
             (rezervasyon_id, yontem, tutar, durum) 
@@ -866,11 +802,11 @@ def create_odeme():
         ))
         odeme_id = db.get_last_insert_id()
 
-        # Rezervasyon durumunu güncelle
+        # Rezervasyon durumunu güncelleme kısmı
         query_update_rez = "UPDATE Rezervasyon SET durum = 'odendi' WHERE rezervasyon_id = %s"
         db.execute_query(query_update_rez, (data['rezervasyon_id'],))
 
-        # Biletleri kesildi yap
+        
         query_update_bilet = "UPDATE Bilet SET durum = 'kesildi' WHERE rezervasyon_id = %s"
         db.execute_query(query_update_bilet, (data['rezervasyon_id'],))
 
@@ -885,9 +821,6 @@ def create_odeme():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# RAPOR API
-# ============================================
 
 @app.route('/api/raporlar/sefer-doluluk', methods=['GET'])
 def rapor_sefer_doluluk():
@@ -909,11 +842,10 @@ def rapor_sefer_doluluk():
             WHERE durum = 'satisa_acik'
             ORDER BY kalkis_zamani
         """
-        # execute_query içinde connection açılıp kapatılacak
+        
         sonuclar = db.execute_query(query, fetch=True)
         
-        # Sonuçları JSON serializable formata çevir
-        # Cursor sonuçlarını hemen yeni dict'lere kopyala
+       
         data = []
         for row in sonuclar:
             item = {
@@ -965,7 +897,6 @@ def rapor_gelir_ozeti():
         
         toplam_result = db.execute_query(query_toplam, tuple(params_toplam), fetch=True)
         
-        # Hat bazlı gelir
         query_hat = """
             SELECT 
                 ik.sehir as kalkis_sehir,
@@ -989,7 +920,7 @@ def rapor_gelir_ozeti():
         
         hat_result = db.execute_query(query_hat, tuple(params_hat), fetch=True)
         
-        # Decimal to float conversion
+       
         for item in hat_result:
             item['gelir'] = float(item['gelir']) if item['gelir'] else 0
         
@@ -1033,9 +964,6 @@ def rapor_bilet_istatistik():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============================================
-# AUTHENTİCATİON ENDPOİNTLERİ
-# ============================================
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -1043,7 +971,7 @@ def register():
     try:
         data = request.get_json()
 
-        # Zorunlu alanları kontrol et
+        # Zorunlu alanları kontrol ediyor.
         required_fields = ['kullanici_adi', 'eposta', 'sifre', 'ad_soyad']
         for field in required_fields:
             if field not in data or not data[field]:
@@ -1055,7 +983,6 @@ def register():
         ad_soyad = data['ad_soyad']
         telefon = data.get('telefon', '')
 
-        # Kullanıcı adı ve eposta kontrolü
         existing_user = db.execute_query(
             "SELECT kullanici_id FROM Kullanici WHERE kullanici_adi = %s OR eposta = %s",
             (kullanici_adi, eposta),
@@ -1065,10 +992,8 @@ def register():
         if existing_user:
             return jsonify({'success': False, 'error': 'Bu kullanıcı adı veya eposta zaten kullanılıyor'}), 400
 
-        # İstenmediği için şifreyi hashlemeden sakla
         sifre_hash = sifre
 
-        # Kullanıcıyı kaydet
         db.execute_query(
             """INSERT INTO Kullanici (kullanici_adi, eposta, sifre_hash, ad_soyad, telefon, rol)
                VALUES (%s, %s, %s, %s, %s, 'kullanici')""",
@@ -1104,7 +1029,6 @@ def login():
         if not kullanici_adi or not sifre:
             return jsonify({'success': False, 'error': 'Kullanıcı adı ve şifre gereklidir'}), 400
 
-        # Kullanıcıyı bul
         user = db.execute_query(
             """SELECT kullanici_id, kullanici_adi, eposta, sifre_hash, ad_soyad, telefon, rol, aktif
                FROM Kullanici WHERE kullanici_adi = %s""",
@@ -1116,7 +1040,6 @@ def login():
             return jsonify({'success': False, 'error': 'Kullanıcı adı veya şifre hatalı'}), 401
 
         user_data = user[0]
-        # Dict olarak al
         kullanici_id = user_data['kullanici_id']
         kul_adi = user_data['kullanici_adi']
         eposta = user_data['eposta']
@@ -1126,7 +1049,6 @@ def login():
         rol = user_data['rol']
         aktif = user_data['aktif']
 
-        # Aktif mi kontrol et (MySQL BOOLEAN/TINYINT bazen True/False, bazen 1/0 döndürür)
         if not aktif:
             return jsonify({'success': False, 'error': 'Hesabınız devre dışı bırakılmış'}), 403
 
@@ -1140,7 +1062,6 @@ def login():
         session['kullanici_adi'] = kul_adi
         session['rol'] = rol
 
-        # Last login güncelle
         db.execute_query(
             "UPDATE Kullanici SET last_login = NOW() WHERE kullanici_id = %s",
             (kullanici_id,)
@@ -1216,9 +1137,6 @@ def get_current_user():
         return jsonify({'success': False, 'error': 'Kullanıcı bilgileri alınamadı'}), 500
 
 
-# ============================================
-# HATA YÖNETİMİ
-# ============================================
 
 @app.errorhandler(404)
 def not_found(error):
@@ -1228,16 +1146,12 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'success': False, 'error': 'Sunucu hatası'}), 500
 
-# ============================================
-# UYGULAMA BAŞLATMA
-# ============================================
 
 if __name__ == '__main__':
     host = os.getenv('HOST', '127.0.0.1')
     port = int(os.getenv('PORT', 5000))
-    debug = False  # Stabil başlatma
+    debug = False  
 
-    # Test DB bağlantısını kontrol et
     db_status = "OK"
     try:
         test_conn = db.get_connection()
