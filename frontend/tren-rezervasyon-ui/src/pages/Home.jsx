@@ -29,7 +29,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { getIstasyonlar, araSefer, getSeferDoluluk } from '../services/api';
 import ReservationDialog from '../components/ReservationDialog';
-import PNRLookup from '../components/PNRLookup';
 import { useAuth } from '../contexts/AuthContext';
 
 const formatDateTime = (value) => {
@@ -53,6 +52,7 @@ function Home() {
   const [error, setError] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSefer, setSelectedSefer] = useState(null);
+  const [lastSearchParams, setLastSearchParams] = useState(null);
 
   const handleLogout = async () => {
     await logout();
@@ -90,31 +90,46 @@ function Home() {
     return [...new Set(istasyonlar.map((item) => item.sehir))].sort();
   }, [istasyonlar]);
 
+  const fetchSeferResults = async (params, { silent = false } = {}) => {
+    if (!params) return;
+
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
+
+    try {
+      const response = await araSefer(params.kalkisSehir, params.varisSehir, params.tarih);
+      const list = response.data.data || [];
+      setSeferler(list);
+
+      if (!silent) {
+        setError(list.length === 0 ? 'Seçilen kriterlere uygun sefer bulunamadı.' : '');
+      }
+    } catch (err) {
+      if (!silent) {
+        setError('Sefer araması sırasında hata oluştu: ' + err.message);
+        setSeferler([]);
+      } else {
+        console.error('Sefer sonuçları yenilenirken hata oluştu:', err);
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleSearch = async (event) => {
     event.preventDefault();
-    setError('');
-
     if (!kalkisSehir || !varisSehir || !tarih) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await araSefer(kalkisSehir, varisSehir, tarih);
-      const list = response.data.data || [];
-      setSeferler(list);
-
-      if (list.length === 0) {
-        setError('Seçilen kriterlere uygun sefer bulunamadı.');
-      }
-    } catch (err) {
-      setError('Sefer araması sırasında hata oluştu: ' + err.message);
-      setSeferler([]);
-    } finally {
-      setLoading(false);
-    }
+    const params = { kalkisSehir, varisSehir, tarih };
+    setLastSearchParams(params);
+    await fetchSeferResults(params);
   };
 
   const openReservation = (sefer) => {
@@ -126,6 +141,22 @@ function Home() {
   const closeReservation = () => {
     setDialogOpen(false);
     setSelectedSefer(null);
+  };
+
+  const refreshDoluluk = async () => {
+    try {
+      const response = await getSeferDoluluk();
+      setDolulukRaporu(response.data.data || []);
+    } catch (err) {
+      console.error('Sefer doluluk raporu alınamadı:', err);
+    }
+  };
+
+  const handleReservationSuccess = () => {
+    refreshDoluluk();
+    if (lastSearchParams) {
+      fetchSeferResults(lastSearchParams, { silent: true });
+    }
   };
 
   return (
@@ -251,10 +282,6 @@ function Home() {
             </Box>
           </CardContent>
         </Card>
-
-  {/* PNR ile bilet sorgulama */}
-  <PNRLookup />
-
         {seferler.length > 0 && (
           <Card sx={{ mb: 4 }}>
             <CardContent>
@@ -365,7 +392,12 @@ function Home() {
       </Container>
 
       {/* Rezervasyon Dialog */}
-      <ReservationDialog open={dialogOpen} onClose={closeReservation} sefer={selectedSefer} />
+      <ReservationDialog
+        open={dialogOpen}
+        onClose={closeReservation}
+        sefer={selectedSefer}
+        onSuccess={handleReservationSuccess}
+      />
     </Box>
   );
 }

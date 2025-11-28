@@ -25,7 +25,7 @@ import {
 
 const pricePerSeat = 250; // Basit sabit fiyat; istenirse dinamik hale getirilebilir
 
-export default function ReservationDialog({ open, onClose, sefer }) {
+export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
   const [koltuklar, setKoltuklar] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -139,11 +139,13 @@ export default function ReservationDialog({ open, onClose, sefer }) {
         tutar: rez.toplam_tutar
       });
 
-      setResult({
+      const payloadResult = {
         pnr: rez.pnr,
         toplam_tutar: rez.toplam_tutar,
         odeme_durumu: odemeRes?.data?.data?.durum || 'basarili'
-      });
+      };
+      setResult(payloadResult);
+      onSuccess?.(payloadResult);
     } catch (err) {
       // 409 için çakışan koltuk bilgisi gösterebiliriz
       const conflicts = err?.response?.data?.conflicts;
