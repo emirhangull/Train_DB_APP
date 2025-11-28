@@ -74,12 +74,15 @@ CREATE TABLE Yolcu (
 CREATE TABLE Rezervasyon (
     rezervasyon_id INT AUTO_INCREMENT PRIMARY KEY,
     pnr VARCHAR(10) NOT NULL UNIQUE,
+    kullanici_id INT NOT NULL,
     olusturulma_zamani TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     toplam_tutar DECIMAL(10, 2) NOT NULL DEFAULT 0,
     durum ENUM('olusturuldu', 'odendi', 'iptal') DEFAULT 'olusturuldu',
     CHECK (toplam_tutar >= 0),
+    FOREIGN KEY (kullanici_id) REFERENCES Kullanici(kullanici_id) ON DELETE CASCADE,
     INDEX idx_pnr (pnr),
-    INDEX idx_durum (durum)
+    INDEX idx_durum (durum),
+    INDEX idx_rez_kullanici (kullanici_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
 -- 7. Bilet Tablosu
@@ -219,6 +222,7 @@ GROUP BY s.sefer_id, s.kalkis_zamani, s.varis_zamani, s.durum,
 CREATE VIEW vw_rezervasyon_ozet AS
 SELECT 
     r.rezervasyon_id,
+    r.kullanici_id,
     r.pnr,
     r.olusturulma_zamani,
     r.toplam_tutar,

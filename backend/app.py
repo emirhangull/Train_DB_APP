@@ -448,8 +448,20 @@ def create_yolcu():
 def get_rezervasyonlar():
     """Tüm rezervasyonları listele"""
     try:
-        query = "SELECT * FROM vw_rezervasyon_ozet ORDER BY olusturulma_zamani DESC"
-        rezervasyonlar = db.execute_query(query, fetch=True)
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user_id = session['user_id']
+        is_admin = session.get('rol') == 'admin'
+
+        query = "SELECT * FROM vw_rezervasyon_ozet"
+        params = ()
+        if not is_admin:
+            query += " WHERE kullanici_id = %s"
+            params = (user_id,)
+        query += " ORDER BY olusturulma_zamani DESC"
+
+        rezervasyonlar = db.execute_query(query, params, fetch=True)
         
         for r in rezervasyonlar:
             r['olusturulma_zamani'] = format_datetime(r['olusturulma_zamani'])
@@ -466,6 +478,12 @@ def get_rezervasyonlar():
 def get_rezervasyon_by_pnr(pnr):
     """PNR koduyla rezervasyon sorgula"""
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user_id = session['user_id']
+        is_admin = session.get('rol') == 'admin'
+
         # Rezervasyon bilgisi
         query1 = """
             SELECT r.*, o.yontem as odeme_yontem, o.durum as odeme_durum
@@ -479,6 +497,9 @@ def get_rezervasyon_by_pnr(pnr):
             return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'}), 404
         
         rezervasyon = rezervasyon[0]
+        if not is_admin and rezervasyon['kullanici_id'] != user_id:
+            return jsonify({'success': False, 'error': 'Bu rezervasyonu görüntüleme yetkiniz yok'}), 403
+
         rezervasyon['olusturulma_zamani'] = format_datetime(rezervasyon['olusturulma_zamani'])
         
         # Bilet bilgileri
@@ -527,6 +548,10 @@ def create_rezervasyon():
     }
     """
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user_id = session['user_id']
         data = request.get_json()
 
         # 0. Koltuk uygunluk kontrolü (ön kontrol)
@@ -574,8 +599,8 @@ def create_rezervasyon():
         for attempt in range(max_pnr_attempts):
             pnr = generate_pnr()
             try:
-                query_rez = "INSERT INTO Rezervasyon (pnr, durum) VALUES (%s, 'olusturuldu')"
-                db.execute_query(query_rez, (pnr,))
+                query_rez = "INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES (%s, 'olusturuldu', %s)"
+                db.execute_query(query_rez, (pnr, user_id))
                 rezervasyon_id = db.get_last_insert_id()
                 break  # Başarılı, döngüden çık
             except Exception as pnr_error:
@@ -677,6 +702,23 @@ def create_rezervasyon():
 def iptal_rezervasyon(rezervasyon_id):
     """Rezervasyonu iptal et"""
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user_id = session['user_id']
+        is_admin = session.get('rol') == 'admin'
+
+        kontrol = db.execute_query(
+            "SELECT kullanici_id FROM Rezervasyon WHERE rezervasyon_id = %s",
+            (rezervasyon_id,),
+            fetch=True
+        )
+        if not kontrol:
+            return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'}), 404
+
+        if not is_admin and kontrol[0]['kullanici_id'] != user_id:
+            return jsonify({'success': False, 'error': 'Bu rezervasyonu iptal etme yetkiniz yok'}), 403
+
         # Rezervasyon durumunu iptal yap
         query1 = "UPDATE Rezervasyon SET durum = 'iptal' WHERE rezervasyon_id = %s"
         db.execute_query(query1, (rezervasyon_id,))
@@ -707,14 +749,22 @@ def create_odeme():
     }
     """
     try:
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Oturum bulunamadı'}), 401
+
+        user_id = session['user_id']
+        is_admin = session.get('rol') == 'admin'
         data = request.get_json()
 
         # Rezervasyon bilgisini ve mevcut ödeme durumunu kontrol et
-        query_rez = "SELECT toplam_tutar, durum FROM Rezervasyon WHERE rezervasyon_id = %s"
+        query_rez = "SELECT toplam_tutar, durum, kullanici_id FROM Rezervasyon WHERE rezervasyon_id = %s"
         rez_result = db.execute_query(query_rez, (data['rezervasyon_id'],), fetch=True)
 
         if not rez_result:
             return jsonify({'success': False, 'error': 'Rezervasyon bulunamadı'}), 404
+
+        if not is_admin and rez_result[0]['kullanici_id'] != user_id:
+            return jsonify({'success': False, 'error': 'Bu rezervasyon için işlem yapma yetkiniz yok'}), 403
 
         if rez_result[0]['durum'] == 'odendi':
             return jsonify({'success': False, 'error': 'Rezervasyon zaten ödenmiş'}), 400
