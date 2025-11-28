@@ -7,9 +7,9 @@ USE tren_rezervasyon_db;
 -- Şifreler bcrypt ile hash'lenmiş (tümü için şifre: "123456")
 -- Hash güncellendi: 2025-11-18
 INSERT INTO Kullanici (kullanici_adi, eposta, sifre_hash, ad_soyad, telefon, rol) VALUES
-('admin', 'admin@tren.com', '$2b$12$ccPXXNAUT/3cukWb1MoWMOCC4IjbV0gafVYtylTqFZbfySPmZM/BO', 'Admin Kullanıcı', '05551111111', 'admin'),
-('ahmet123', 'ahmet@email.com', '$2b$12$ccPXXNAUT/3cukWb1MoWMOCC4IjbV0gafVYtylTqFZbfySPmZM/BO', 'Ahmet Yılmaz', '05552222222', 'kullanici'),
-('ayse456', 'ayse@email.com', '$2b$12$ccPXXNAUT/3cukWb1MoWMOCC4IjbV0gafVYtylTqFZbfySPmZM/BO', 'Ayşe Kara', '05553333333', 'kullanici');
+('admin', 'admin@tren.com', '123456', 'Admin Kullanıcı', '05551111111', 'admin'),
+('ahmet123', 'ahmet@email.com', '123456', 'Ahmet Yılmaz', '05552222222', 'kullanici'),
+('ayse456', 'ayse@email.com', '123456', 'Ayşe Kara', '05553333333', 'kullanici');
 
 -- 2. İstasyonlar (4 adet)
 INSERT INTO Istasyon (ad, sehir) VALUES
@@ -43,9 +43,6 @@ INSERT INTO Yolcu (ad_soyad, eposta, telefon) VALUES
 INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES
 ('ABC123XYZ', 'odendi', 2);
 
--- Rezervasyon 2: Oluşturuldu (henüz ödenmedi - ayse456)
-INSERT INTO Rezervasyon (pnr, durum, kullanici_id) VALUES
-('DEF456UVW', 'olusturuldu', 3);
 
 -- 7. Biletler (4 adet)
 -- Rezervasyon 1 için 2 bilet (Ankara -> İstanbul seferi)

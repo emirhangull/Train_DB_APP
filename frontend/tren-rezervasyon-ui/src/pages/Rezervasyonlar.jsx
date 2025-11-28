@@ -21,7 +21,6 @@ import {
 } from '@mui/material';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import AirlineSeatReclineNormalIcon from '@mui/icons-material/AirlineSeatReclineNormal';
-import EventSeatIcon from '@mui/icons-material/EventSeat';
 import { getRezervasyonlar, getRezervasyonByPNR } from '../services/api';
 
 const durumChipRengi = (durum) => {
@@ -129,19 +128,6 @@ export default function Rezervasyonlar() {
                   Toplam Koltuk
                 </Typography>
                 <Typography variant="h5">{toplamBilet}</Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Paper elevation={2} sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <EventSeatIcon color="warning" />
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Ödeme Bekleyen
-                </Typography>
-                <Typography variant="h5">
-                  {reservations.filter((item) => item.rezervasyon_durum === 'olusturuldu').length}
-                </Typography>
               </Box>
             </Paper>
           </Grid>

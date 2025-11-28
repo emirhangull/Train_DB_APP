@@ -48,72 +48,294 @@ Veritabanı (MySQL)
 - ✅ View'lar (sefer detayı, rezervasyon özeti)
 - ✅ Index'ler (performans optimizasyonu)
 
-## 🚀 Kurulum
+## ⚡ Hızlı Başlangıç (5 Dakikada Çalıştırın!)
+
+```bash
+# 1. Projeyi indirin
+git clone https://github.com/emirhangull/Train_DB_APP.git
+cd Train_DB_APP
+
+# 2. Veritabanını kurun (MySQL'de)
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed_data.sql
+
+# 3. Backend'i başlatın
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+# .env dosyasını açıp DB_PASSWORD değiştirin!
+python app.py
+
+# 4. Frontend'i başlatın (yeni terminal)
+cd frontend/tren-rezervasyon-ui
+npm install
+npm start
+
+# 5. Giriş yapın: admin / 123456
+```
+
+---
+
+## 🚀 Kurulum (Adım Adım Rehber)
+
+Bu rehber, projeyi GitHub'dan indirip sıfırdan kurmanız için hazırlanmıştır.
 
 ### Ön Gereksinimler
 
-- [MySQL 8.x](https://dev.mysql.com/downloads/mysql/)
-- [Python 3.8+](https://www.python.org/downloads/)
-- [Node.js 16+](https://nodejs.org/)
-- [Git](https://git-scm.com/)
+Bilgisayarınızda şunların yüklü olması gerekiyor:
 
-### 1. Projeyi İndirin
+- **MySQL 8.x** - [İndir](https://dev.mysql.com/downloads/mysql/)
+- **Python 3.8+** - [İndir](https://www.python.org/downloads/)
+- **Node.js 16+** - [İndir](https://nodejs.org/)
+- **Git** - [İndir](https://git-scm.com/)
 
-```powershell
+### 📥 Adım 1: Projeyi İndirin
+
+```bash
 git clone https://github.com/emirhangull/Train_DB_APP.git
 cd Train_DB_APP
 ```
 
-### 2. MySQL Veritabanını Kurun
+---
 
-```powershell
-# MySQL'e giriş yapın
+### 🗄️ Adım 2: MySQL Veritabanını Kurun
+
+#### 2.1 MySQL Sunucusunu Başlatın
+MySQL sunucunuzun çalıştığından emin olun.
+
+#### 2.2 MySQL'e Giriş Yapın
+```bash
 mysql -u root -p
+```
+Sizden şifre isteyecek - MySQL root şifrenizi girin.
 
-# Veritabanını oluşturun
-source database/schema.sql
-source database/seed_data.sql
+#### 2.3 Veritabanı ve Tabloları Oluşturun
+
+MySQL komut satırında aşağıdaki komutları çalıştırın:
+
+**Windows:**
+```sql
+source C:/path/to/Train_DB_APP/database/schema.sql
+source C:/path/to/Train_DB_APP/database/seed_data.sql
 ```
 
-### 3. Backend Kurulumu
+**MacOS/Linux:**
+```sql
+source /path/to/Train_DB_APP/database/schema.sql
+source /path/to/Train_DB_APP/database/seed_data.sql
+```
 
-```powershell
+> **Not:** `path/to/Train_DB_APP` kısmını projenin gerçek yolu ile değiştirin.
+
+#### 2.4 Doğrulama
+Tabloların başarıyla oluşturulduğunu kontrol edin:
+```sql
+USE tren_rezervasyon_db;
+SHOW TABLES;
+```
+
+8 tablo görmelisiniz:
+- Kullanici
+- Istasyon
+- Tren
+- Sefer
+- Yolcu
+- Rezervasyon
+- Bilet
+- Odeme
+
+MySQL'den çıkış yapmak için:
+```sql
+exit;
+```
+
+---
+
+### 🐍 Adım 3: Backend (Flask API) Kurulumu
+
+#### 3.1 Backend Klasörüne Gidin
+```bash
 cd backend
+```
 
-# Sanal ortam oluştur (önerilen)
+#### 3.2 Python Sanal Ortamı Oluşturun (Önerilen)
+
+**Windows:**
+```bash
 python -m venv venv
-.\venv\Scripts\Activate.ps1
+venv\Scripts\activate
+```
 
-# Bağımlılıkları yükle
+**MacOS/Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Sanal ortam aktif olduğunda komut satırında `(venv)` görmelisiniz.
+
+#### 3.3 Python Bağımlılıklarını Yükleyin
+```bash
 pip install -r requirements.txt
+```
 
-# .env dosyasını ayarla
+#### 3.4 Çevre Değişkenlerini Ayarlayın (.env Dosyası)
+
+**ÖNEMLİ:** `.env` dosyasını **kendi bilgisayarınıza göre** düzenlemeniz gerekiyor.
+
+`.env.example` dosyasını `.env` olarak kopyalayın:
+
+**Windows:**
+```bash
 copy .env.example .env
-# .env dosyasını düzenleyin ve MySQL bilgilerinizi girin
+```
 
-# Backend'i başlat
+**MacOS/Linux:**
+```bash
+cp .env.example .env
+```
+
+Şimdi `.env` dosyasını bir metin editörü ile açın ve şu değerleri **kendi MySQL bilgilerinize göre** değiştirin:
+
+```env
+# MySQL Veritabanı Ayarları
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=BURAYA_KENDI_MYSQL_ŞİFRENİZİ_YAZIN
+DB_NAME=tren_rezervasyon_db
+DB_PORT=3306
+
+# Flask Ayarları
+FLASK_APP=app.py
+FLASK_ENV=development
+FLASK_DEBUG=True
+SECRET_KEY=your-secret-key-here-change-in-production
+
+# Sunucu Ayarları
+HOST=0.0.0.0
+PORT=5000
+```
+
+> **Kritik:** `DB_PASSWORD` kısmını kendi MySQL root şifrenizle değiştirin!
+
+#### 3.5 Backend Sunucusunu Başlatın
+```bash
 python app.py
 ```
 
-Backend http://localhost:5000 adresinde çalışacaktır.
+Backend başarıyla çalışıyorsa şu çıktıyı görmelisiniz:
+```
+==================================================================
+TREN REZERVASYON SİSTEMİ API
+==================================================================
+HOST        : 0.0.0.0
+PORT        : 5000
+...
+```
 
-### 4. Frontend Kurulumu
+Backend artık çalışıyor: **http://localhost:5000**
 
-```powershell
-cd frontend
+Tarayıcınızda test edin: http://localhost:5000/health
 
-# React uygulaması oluştur (ilk kez)
-npx create-react-app tren-rezervasyon-ui
-cd tren-rezervasyon-ui
+---
 
-# Bağımlılıkları yükle
+### ⚛️ Adım 4: Frontend (React UI) Kurulumu
+
+**Yeni bir terminal penceresi açın** (Backend çalışmaya devam etsin)
+
+#### 4.1 Frontend Klasörüne Gidin
+```bash
+cd frontend/tren-rezervasyon-ui
+```
+
+> **Not:** Eğer `tren-rezervasyon-ui` klasörü yoksa, önce oluşturmanız gerekiyor (ilk kurulumda):
+> ```bash
+> cd frontend
+> npx create-react-app tren-rezervasyon-ui
+> cd tren-rezervasyon-ui
+> ```
+
+#### 4.2 Node.js Bağımlılıklarını Yükleyin
+```bash
+npm install
+```
+
+Eğer hata alırsanız, gerekli paketleri manuel olarak yükleyin:
+```bash
 npm install axios react-router-dom @mui/material @emotion/react @emotion/styled @mui/icons-material date-fns
+```
 
-# Frontend'i başlat
+#### 4.3 Frontend Sunucusunu Başlatın
+```bash
 npm start
 ```
 
-Frontend http://localhost:3000 adresinde açılacaktır.
+React development server otomatik olarak tarayıcıda açılacaktır: **http://localhost:3000**
+
+---
+
+### ✅ Adım 5: Giriş Yapın ve Test Edin
+
+Frontend açıldıktan sonra sisteme giriş yapabilirsiniz.
+
+#### Test Kullanıcı Hesapları
+
+Veritabanında hazır 3 test kullanıcısı var:
+
+| Kullanıcı Adı | Şifre   | Rol         | E-posta             |
+|---------------|---------|-------------|---------------------|
+| `admin`       | `123456`| Admin       | admin@tren.com      |
+| `ahmet123`    | `123456`| Kullanıcı   | ahmet@email.com     |
+| `ayse456`     | `123456`| Kullanıcı   | ayse@email.com      |
+
+**İlk Giriş:**
+1. Frontend sayfasında "Giriş Yap" tıklayın
+2. Kullanıcı Adı: `admin`
+3. Şifre: `123456`
+4. Giriş yapın
+
+---
+
+### 🔧 Sorun Giderme
+
+#### ❌ Backend Başlamıyor - "Access denied for user"
+**Sorun:** MySQL bağlantı hatası
+**Çözüm:** `.env` dosyasındaki `DB_PASSWORD` değerini kontrol edin. Kendi MySQL şifrenizi yazdığınızdan emin olun.
+
+#### ❌ "Unknown database 'tren_rezervasyon_db'"
+**Sorun:** Veritabanı oluşturulmamış
+**Çözüm:** Adım 2'yi tekrar yapın. `schema.sql` ve `seed_data.sql` dosyalarını MySQL'de çalıştırın.
+
+#### ❌ Frontend başlamıyor - Port 3000 kullanımda
+**Sorun:** 3000 portu zaten kullanılıyor
+**Çözüm:** Farklı bir port kullanın veya çalışan uygulamayı kapatın.
+
+#### ❌ "Kullanıcı adı veya şifre hatalı"
+**Sorun:** Kullanıcı veritabanında yok
+**Çözüm:** `seed_data.sql` dosyasını tekrar çalıştırın.
+
+#### ❌ CORS Hatası
+**Sorun:** Frontend backend'e bağlanamıyor
+**Çözüm:** Backend'in `http://localhost:5000` adresinde çalıştığından emin olun.
+
+---
+
+### 🎯 Kurulum Tamamlandı!
+
+Artık sistemi kullanmaya başlayabilirsiniz:
+
+- **Backend API:** http://localhost:5000
+- **Frontend UI:** http://localhost:3000
+- **Health Check:** http://localhost:5000/health
+
+### Sırada Ne Var?
+
+1. **Sefer Arama:** Ana sayfada kalkış/varış şehri ve tarih seçin
+2. **Bilet Alma:** Uygun seferi seçin, koltuk seçin, rezervasyon yapın
+3. **Yönetici Paneli:** Admin hesabıyla giriş yaparak istasyon, tren, sefer yönetimi yapın
+4. **Raporlar:** Gelir özeti ve doluluk oranı raporlarını görüntüleyin
 
 ## 📱 Özellikler
 
@@ -248,6 +470,12 @@ Tüm endpoint'ler için detaylı dokümantasyon: [backend/README.md](backend/REA
 - ✅ Raporlama sistemi
 - ✅ Dummy test verileri
 - ✅ 3-tier mimari (İstemci-WebServer-DB)
+
+## 📖 Ek Dokümantasyon
+
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Sorun giderme rehberi ve yaygın hatalar
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Projeye katkıda bulunma rehberi
+- **[backend/README.md](backend/README.md)** - Backend API dokümantasyonu
 
 ## 🐛 Bilinen Kısıtlamalar
 
