@@ -42,9 +42,13 @@ export default function Raporlar() {
     const fetchDoluluk = async () => {
       try {
         const response = await getSeferDoluluk();
+        console.log('API Response:', response);
+        console.log('API Data:', response.data);
+        console.log('Sefer Data:', response.data.data);
         if (!isMounted) return;
         setDolulukVerisi(response.data.data || []);
       } catch (err) {
+        console.error('Fetch error:', err);
         if (isMounted) {
           setError('Sefer doluluk raporu çekilirken hata oluştu: ' + err.message);
         }

@@ -23,7 +23,7 @@ import {
   createOdeme
 } from '../services/api';
 
-const pricePerSeat = 250; // Basit sabit fiyat; istenirse dinamik hale getirilebilir
+const pricePerSeat = 250; 
 const sanitizePhone = (value) => value.replace(/[^\d\s]/g, '');
 const sanitizeName = (value) => value.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü\s]/g, '');
 
@@ -66,16 +66,13 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
   }, [open, sefer]);
 
   useEffect(() => {
-    // Yolcu listesi, seçilen koltuk sayısına göre ayarlanır
     setPassengers((prev) => {
       const copy = [...prev];
       if (selectedSeats.length > copy.length) {
-        // Eksik ise placeholder yolcular ekle
         while (copy.length < selectedSeats.length) {
           copy.push({ ad_soyad: '', eposta: '', telefon: '' });
         }
       } else if (selectedSeats.length < copy.length) {
-        // Fazla ise kırp
         copy.length = selectedSeats.length;
       }
       return copy;
@@ -83,7 +80,7 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
   }, [selectedSeats.length]);
 
   const toggleSeat = (no, durum) => {
-    if (durum === 'dolu') return; // Dolu koltuk seçilemez
+    if (durum === 'dolu') return; 
     setSelectedSeats((prev) =>
       prev.includes(no) ? prev.filter((x) => x !== no) : [...prev, no]
     );
@@ -110,7 +107,6 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
       setSubmitting(true);
       setError('');
 
-      // Basit validasyon
       if (selectedSeats.length === 0) {
         setError('Lütfen en az bir koltuk seçin.');
         setSubmitting(false);
@@ -130,7 +126,6 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
         }
       }
 
-      // Rezervasyon isteği
       const sanitizedPassengers = passengers.map((p) => ({
         ad_soyad: sanitizeName(p.ad_soyad.trim()),
         eposta: p.eposta.trim(),
@@ -150,7 +145,6 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
       const res = await createRezervasyon(payload);
       const rez = res?.data?.data;
 
-      // Ödeme isteği (mock)
       const odemeRes = await createOdeme({
         rezervasyon_id: rez.rezervasyon_id,
         yontem: 'kart',
@@ -165,7 +159,6 @@ export default function ReservationDialog({ open, onClose, sefer, onSuccess }) {
       setResult(payloadResult);
       onSuccess?.(payloadResult);
     } catch (err) {
-      // 409 için çakışan koltuk bilgisi gösterebiliriz
       const conflicts = err?.response?.data?.conflicts;
       if (conflicts?.length) {
         setError('Seçili koltuklardan bazıları dolu: ' + conflicts.map((c) => c.koltuk_no).join(', '));

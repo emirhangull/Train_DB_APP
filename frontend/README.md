@@ -8,32 +8,23 @@ React tabanlı kullanıcı arayüzü.
 
 Eğer yüklü değilse, [Node.js](https://nodejs.org/) indirip kurun (npm ile birlikte gelir).
 
-### 2. React Uygulamasını Oluştur
+### 2. Mevcut UI'yi Kur
 
 ```powershell
-cd frontend
-npx create-react-app tren-rezervasyon-ui
-cd tren-rezervasyon-ui
+cd frontend/tren-rezervasyon-ui
+npm install
 ```
 
-### 3. Gerekli Paketleri Yükle
+### 3. Backend API'yi Başlat
 
-```powershell
-npm install axios react-router-dom
-npm install @mui/material @emotion/react @emotion/styled @mui/icons-material
-npm install date-fns
-```
-
-### 4. Backend API'yi Başlat
-
-Frontend çalışmadan önce backend'in çalışıyor olması gerekir:
+Frontend çalışmadan önce backend'in çalışıyor olması gerekir (varsayılan port 5003):
 
 ```powershell
 cd ../../backend
 python app.py
 ```
 
-### 5. Frontend'i Başlat
+### 4. Frontend'i Başlat
 
 ```powershell
 cd ../frontend/tren-rezervasyon-ui

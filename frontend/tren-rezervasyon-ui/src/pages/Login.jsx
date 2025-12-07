@@ -1,7 +1,4 @@
-/**
- * Login Page
- * Kullanıcı giriş sayfası
- */
+/* Login Page */
 import React, { useState } from 'react';
 import {
   Container,
@@ -40,7 +37,6 @@ export default function Login() {
     setLoading(false);
 
     if (result.success) {
-      // Başarılı giriş, ana sayfaya yönlendir
       navigate('/');
     } else {
       setError(result.error || 'Giriş yapılırken bir hata oluştu');

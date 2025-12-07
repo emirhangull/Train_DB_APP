@@ -1,7 +1,4 @@
-/**
- * Protected Route Component
- * Giriş yapmamış kullanıcıları login sayfasına yönlendirir
- */
+
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';

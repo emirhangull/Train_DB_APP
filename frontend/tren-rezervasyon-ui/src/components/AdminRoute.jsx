@@ -3,9 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * AdminRoute - sadece admin yetkisine sahip kullanıcıların erişebileceği rotalar
- */
+/* AdminRoute - sadece admin yetkisine sahip kullanıcıların erişebileceği kısımlar */
 export default function AdminRoute({ children }) {
   const { loading, isAuthenticated, isAdmin } = useAuth();
 
